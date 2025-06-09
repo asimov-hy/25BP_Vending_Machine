@@ -1,127 +1,106 @@
 import pygame
 import sys
 
-# Initialize Pygame
 pygame.init()
 
-# Debug flag: set to True to draw button outlines for debugging
-DEBUG = False
-
-# Initial window size
+DEBUG = 1
 initial_width, initial_height = 800, 600
-
-# Create a resizable window
 screen = pygame.display.set_mode((initial_width, initial_height), pygame.RESIZABLE)
-pygame.display.set_caption("Centered VM Sprite with Button Grid and Item Icons")
+pygame.display.set_caption("Vending Machine Items Only")
 
-# Load and scale the main sprite image
+VM_SCALE = 0.54
+ITEM_SCALE = 0.70
+
 original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
-SPRITE_SCALE = 1.1
-scaled_width = int(original_sprite.get_width() * SPRITE_SCALE)
-scaled_height = int(original_sprite.get_height() * SPRITE_SCALE)
+scaled_width = int(original_sprite.get_width() * VM_SCALE)
+scaled_height = int(original_sprite.get_height() * VM_SCALE)
 sprite = pygame.transform.scale(original_sprite, (scaled_width, scaled_height))
-
-# Determine the background color from the top-left pixel of the scaled sprite
 bg_color = sprite.get_at((0, 0))
 
-# List of item image file paths and their display names
 stock_list = [
-    "stock/chips.png",
-    "stock/coffee.png",
-    "stock/cola_can.png",
-    "stock/lemonade.png",
-    "stock/orange_juice.png",
-    "stock/cola_bottle.png",
-    "stock/sword.png",
-    "stock/mystery_potion.png",
-    "stock/nuke.png",
-    "stock/pokeball.png",
-    "stock/mystery_box.png",
-    "stock/small_doll.png",
-    "stock/sold_out.png"  # Last image indicates sold out
-]
-item_names = [
-    "Crisps",
-    "Coffee",
-    "Cola Can",
-    "Lemonade",
-    "Orange Juice",
-    "Cola Bottle",
-    "Sword",
-    "Mystery Potion",
-    "Nuke",
-    "Pokeball",
-    "Mystery Box",
-    "Small Doll",
-    "Sold Out"  # Name for sold out state
+    "stock/chips.png", "stock/coffee.png", "stock/cola_can.png", "stock/lemonade.png",
+    "stock/orange_juice.png", "stock/cola_bottle.png", "stock/sword.png", "stock/mystery_potion.png",
+    "stock/nuke.png", "stock/pokeball.png", "stock/mystery_box.png", "stock/small_doll.png",
+    "stock/sold_out.png"
 ]
 
-# Preload item images into surfaces
+item_names = [
+    "Crisps", "Coffee", "Cola Can", "Lemonade", "Orange Juice", "Cola Bottle",
+    "Sword", "Mystery Potion", "Nuke", "Pokeball", "Mystery Box", "Small Doll", "Sold Out"
+]
+
 item_surfaces = [pygame.image.load(path).convert_alpha() for path in stock_list]
 
-# Function to generate button rectangles based on sprite_rect each frame
-def generate_buttons(sprite_rect, btn_size=68):
-    x_offsets = [-144, -70, 4, 78]
-    y_offsets = [-155, -80, -5]
-    btns = []
-    for y_off in y_offsets:
-        for x_off in x_offsets:
-            x = sprite_rect.centerx + x_off
-            y = sprite_rect.centery + y_off
-            btns.append(pygame.Rect(x, y, btn_size, btn_size))
-    return btns
+row_offsets = [-205, -124, -45]
+col_offsets = [-151, -76, -4, 66]
+
+item_offsets = [(x, y) for y in row_offsets for x in col_offsets]
+
+ui_buttons = {
+    "numpad": ((161, -120), (1.5, 2.0)),
+    "card": ((161, -21), (1.5, 1.0)),
+    "cash": ((161, 65), (1.5, 1.6)),
+    "dispenser": ((-33, 200), (5, 1.5))
+}
+
+ui_colors = {
+    "numpad": (255, 200, 200),
+    "card": (200, 255, 200),
+    "cash": (200, 200, 255),
+    "dispenser": (255, 255, 200)
+}
 
 clock = pygame.time.Clock()
 running = True
 
 while running:
-    # Always fetch the current window size and sprite_rect
     window_width, window_height = screen.get_size()
     sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2))
-    buttons = generate_buttons(sprite_rect)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mouse_pos = event.pos
-            for idx, btn in enumerate(buttons):
-                if btn.collidepoint(mouse_pos):
-                    # If idx out of range or item is empty, use last (sold out)
-                    name = item_names[idx] if idx < len(item_names) - 1 else item_names[-1]
-                    print(f"{name} have been added to cart!")
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_d:
             DEBUG = not DEBUG
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_x, mouse_y = event.pos
+            rel_x = mouse_x - sprite_rect.centerx
+            rel_y = mouse_y - sprite_rect.centery
+            print(f"Mouse clicked at relative position: ({rel_x}, {rel_y})")
 
-    # Draw background and sprite
     screen.fill(bg_color)
     screen.blit(sprite, sprite_rect)
 
-    # Blit item images centered in each button with margin
-    margin_ratio = 0.8
-    max_dim = int(68 * margin_ratio)
-    for idx, btn in enumerate(buttons):
-        # If idx < last index, show that item; otherwise show sold_out image
-        if idx < len(item_surfaces) - 1:
-            item_img = item_surfaces[idx]
-        else:
-            item_img = item_surfaces[-1]
+    box_size = int(68 * ITEM_SCALE)
+    for idx, (x_off, y_off) in enumerate(item_offsets):
+        item_img = item_surfaces[idx] if idx < len(item_surfaces) - 1 else item_surfaces[-1]
         iw, ih = item_img.get_width(), item_img.get_height()
-        scale_factor = min(max_dim / iw, max_dim / ih, 1)
+        scale_factor = min(box_size / iw, box_size / ih)
         new_w = int(iw * scale_factor)
         new_h = int(ih * scale_factor)
-        item_img_scaled = pygame.transform.smoothscale(item_img, (new_w, new_h)) if scale_factor < 1 else item_img
-        item_rect = item_img_scaled.get_rect(center=btn.center)
+        item_img_scaled = pygame.transform.smoothscale(item_img, (new_w, new_h))
+        box_center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
+        box_rect = pygame.Rect(0, 0, box_size, box_size)
+        box_rect.center = box_center
+        item_rect = item_img_scaled.get_rect(center=box_rect.center)
         screen.blit(item_img_scaled, item_rect)
 
-    # If debug mode is on, draw outlines around the button rectangles
-    if DEBUG:
-        colors = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (255, 255, 0)]
-        for idx, btn in enumerate(buttons):
-            color = colors[idx % len(colors)]
-            pygame.draw.rect(screen, color, btn, 2)
+        if DEBUG:
+            pygame.draw.rect(screen, (255, 100, 100), box_rect, 2)
+            pygame.draw.rect(screen, (0, 200, 255), item_rect, 1)
+
+    for name, ((x_off, y_off), (scale_w, scale_h)) in ui_buttons.items():
+        base_size = 70 * ITEM_SCALE
+        btn_width = int(base_size * scale_w)
+        btn_height = int(base_size * scale_h)
+        btn_center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
+        btn_rect = pygame.Rect(0, 0, btn_width, btn_height)
+        btn_rect.center = btn_center
+
+        color = ui_colors.get(name, (255, 255, 255))
+        pygame.draw.rect(screen, color, btn_rect, 2)  # Outline only
 
     pygame.display.flip()
     clock.tick(60)
