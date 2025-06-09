@@ -2,3 +2,5 @@
 
 python: 3.11.9
 pygame 2.6.1
+
+폰트: Neo둥근모(https://neodgm.dalgona.dev/)
