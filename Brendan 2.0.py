@@ -21,12 +21,12 @@ GRID_PADDING_X = 5                         # Horizontal padding between grid but
 GRID_PADDING_Y = 8                         # Vertical padding between grid buttons
 # Clear/Enter button configuration
 # Clear button width, height and offset from grid origin
-CLEAR_BUTTON_SIZE = (50, 40)               # Width, Height for Clear button
-CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE*3 + GRID_PADDING_Y)  # x, y offset for Clear button
+CLEAR_BUTTON_SIZE = (65, 30)               # Width, Height for Clear button
+CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE*3 + GRID_PADDING_Y+17)  # x, y offset for Clear button
 # Enter button width, height and offset from grid origin
-ENTER_BUTTON_SIZE = (35, 40)               # Width, Height for Enter button
+ENTER_BUTTON_SIZE = (65, 30)               # Width, Height for Enter button
 ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X,
-                       GRID_BUTTON_SIZE*3 + GRID_PADDING_Y)        # x, y offset for Enter button
+                       GRID_BUTTON_SIZE*3 + GRID_PADDING_Y+ 17)        # x, y offset for Enter button
 
 # ---------------------------- Load Sprites and Assets ----------------------------
 original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
