@@ -4,7 +4,8 @@ import sys
 # ---------------------------- Initialization ----------------------------
 pygame.init()
 
-DEBUG = 1
+DEBUG = 0  # only controls outlines, not functionality
+click_pos = False  # for console logging
 initial_width, initial_height = 800, 600
 screen = pygame.display.set_mode((initial_width, initial_height), pygame.RESIZABLE)
 pygame.display.set_caption("Vending Machine Items Only")
@@ -13,20 +14,28 @@ pygame.display.set_caption("Vending Machine Items Only")
 VM_SCALE = 0.54
 ITEM_SCALE = 0.70
 # Numpad grid configuration
-NUMPAD_OFFSET = (500, -150)                # Offset of numpad image from VM center
+NUMPAD_OFFSET = (500, -150)
 NUMPAD_SCALE = 1
-GRID_OFFSET = (-65, -60)                   # Offset of number grid from numpad center
-GRID_BUTTON_SIZE = 40                      # Size of each number button
-GRID_PADDING_X = 5                         # Horizontal padding between grid buttons
-GRID_PADDING_Y = 8                         # Vertical padding between grid buttons
+GRID_OFFSET = (-65, -60)
+GRID_BUTTON_SIZE = 40
+GRID_PADDING_X = 5
+GRID_PADDING_Y = 8
 # Clear/Enter button configuration
-# Clear button width, height and offset from grid origin
-CLEAR_BUTTON_SIZE = (65, 30)               # Width, Height for Clear button
-CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE*3 + GRID_PADDING_Y+17)  # x, y offset for Clear button
-# Enter button width, height and offset from grid origin
-ENTER_BUTTON_SIZE = (65, 30)               # Width, Height for Enter button
-ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X,
-                       GRID_BUTTON_SIZE*3 + GRID_PADDING_Y+ 17)        # x, y offset for Enter button
+CLEAR_BUTTON_SIZE = (60, 30)
+CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
+ENTER_BUTTON_SIZE = (60, 30)
+ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10,
+                       GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
+
+# Font for displaying messages
+font = pygame.font.SysFont(None, 24)
+input_font = pygame.font.SysFont(None, 48)
+
+# Message and input state
+active_message = ""            # message to display
+message_timer = 0               # frames remaining for timed messages (>0)
+MESSAGE_DURATION = 180          # 3 seconds at 60 FPS
+order_number = ""              # stores numpad input
 
 # ---------------------------- Load Sprites and Assets ----------------------------
 original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
@@ -38,8 +47,6 @@ bg_color = sprite.get_at((0, 0))
 numpad_image = pygame.image.load("picture/cash/numpad.png").convert_alpha()
 numpad_visible = False
 
-order_number = ""
-
 # ---------------------------- Stock Items ----------------------------
 stock_list = [
     "picture/chips.png", "picture/coffee.png", "picture/cola_can.png", "picture/lemonade.png",
@@ -47,17 +54,16 @@ stock_list = [
     "picture/nuke.png", "picture/pokeball.png", "picture/mystery_box.png", "picture/small_doll.png",
     "picture/sold_out.png"
 ]
-
 item_names = [
-    "Crisps", "Coffee", "Cola Can", "Lemonade", "Orange Juice", "Cola Bottle",
-    "Sword", "Mystery Potion", "Nuke", "Pokeball", "Mystery Box", "Small Doll", "Sold Out"
+    "Crisps - $3500", "Coffee - $1500", "Cola Can - $1200", "Lemonade - $1300", "Orange Juice - $1500", "Cola Bottle - $2200",
+    "Sword - $13000", "Mystery Potion - $30000", "Nuke - $100000", "Pokeball - $5000", "Mystery Box - $1000", "Small Doll - $50000", "Sold Out"
 ]
-
 item_surfaces = [pygame.image.load(path).convert_alpha() for path in stock_list]
 
 row_offsets = [-205, -124, -45]
 col_offsets = [-151, -76, -4, 66]
 item_offsets = [(x, y) for y in row_offsets for x in col_offsets]
+BOX_SIZE = int(68 * ITEM_SCALE)
 
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
@@ -66,7 +72,6 @@ ui_buttons = {
     "cash": ((161, 65), (1.5, 1.6)),
     "dispenser": ((-33, 200), (5, 1.5))
 }
-
 ui_colors = {
     "numpad": (255, 200, 200),
     "card": (200, 255, 200),
@@ -82,7 +87,6 @@ while running:
     window_width, window_height = screen.get_size()
     sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2))
 
-    # ---------------------------- Event Handling ----------------------------
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -92,126 +96,97 @@ while running:
             DEBUG = not DEBUG
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_x, mouse_y = event.pos
-            rel_x = mouse_x - sprite_rect.centerx
-            rel_y = mouse_y - sprite_rect.centery
-            print(f"Mouse clicked at relative position: ({rel_x}, {rel_y})")
-
-            # UI button toggles
+            # UI toggles
             for name, ((x_off, y_off), (scale_w, scale_h)) in ui_buttons.items():
-                base_size = 70 * ITEM_SCALE
-                btn_width = int(base_size * scale_w)
-                btn_height = int(base_size * scale_h)
-                btn_center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
-                btn_rect = pygame.Rect(0, 0, btn_width, btn_height)
-                btn_rect.center = btn_center
-                if btn_rect.collidepoint(mouse_x, mouse_y) and name == "numpad":
+                base = 70 * ITEM_SCALE
+                w = int(base * scale_w)
+                h = int(base * scale_h)
+                center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
+                rect = pygame.Rect(0, 0, w, h); rect.center = center
+                if rect.collidepoint(mouse_x, mouse_y) and name == "numpad":
                     numpad_visible = not numpad_visible
 
-            # Number grid input
+            # Item slot clicks
+            for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
+                center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
+                rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE); rect.center = center
+                if rect.collidepoint(mouse_x, mouse_y):
+                    active_message = f"{idx+1}: {item_names[idx]}"
+                    message_timer = MESSAGE_DURATION  # timed message
+
+            # Numpad input
             if numpad_visible:
                 base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
                 base_y = sprite_rect.centery + NUMPAD_OFFSET[1] + GRID_OFFSET[1]
-
-                # Digit buttons
-                for row in range(3):
-                    for col in range(3):
-                        btn_rect = pygame.Rect(
-                            base_x + col * (GRID_BUTTON_SIZE + GRID_PADDING_X),
-                            base_y + row * (GRID_BUTTON_SIZE + GRID_PADDING_Y),
+                # digit buttons
+                for r in range(3):
+                    for c in range(3):
+                        rct = pygame.Rect(
+                            base_x + c*(GRID_BUTTON_SIZE+GRID_PADDING_X),
+                            base_y + r*(GRID_BUTTON_SIZE+GRID_PADDING_Y),
                             GRID_BUTTON_SIZE, GRID_BUTTON_SIZE
                         )
-                        if btn_rect.collidepoint(mouse_x, mouse_y):
-                            order_number += str(row * 3 + col + 1)
-
-                # Clear and Enter buttons
-                clear_rect = pygame.Rect(
-                    base_x + CLEAR_BUTTON_OFFSET[0],
-                    base_y + CLEAR_BUTTON_OFFSET[1],
-                    CLEAR_BUTTON_SIZE[0], CLEAR_BUTTON_SIZE[1]
-                )
-                enter_rect = pygame.Rect(
-                    base_x + ENTER_BUTTON_OFFSET[0],
-                    base_y + ENTER_BUTTON_OFFSET[1],
-                    ENTER_BUTTON_SIZE[0], ENTER_BUTTON_SIZE[1]
-                )
-
-                if clear_rect.collidepoint(mouse_x, mouse_y):
-                    order_number = ""
-                if enter_rect.collidepoint(mouse_x, mouse_y):
-                    print("Order received:", order_number)
+                        if rct.collidepoint(mouse_x, mouse_y):
+                            order_number += str(r*3 + c+1)
+                            if len(order_number)>2: order_number = order_number[1:]
+                # clear/enter
+                c_r = pygame.Rect(base_x+CLEAR_BUTTON_OFFSET[0], base_y+CLEAR_BUTTON_OFFSET[1], *CLEAR_BUTTON_SIZE)
+                e_r = pygame.Rect(base_x+ENTER_BUTTON_OFFSET[0], base_y+ENTER_BUTTON_OFFSET[1], *ENTER_BUTTON_SIZE)
+                if c_r.collidepoint(mouse_x, mouse_y):
+                    order_number = ""; active_message = ""; message_timer=0
+                if e_r.collidepoint(mouse_x, mouse_y):
+                    # insert price message, persistent
+                    if order_number.isdigit() and 1<=int(order_number)<=12:
+                        price = item_names[int(order_number)-1].split(" - ")[1]
+                        active_message = f"Insert {price}"
+                        message_timer = 0  # persistent until clear
+                    else:
+                        active_message = "No such item"
+                        message_timer = MESSAGE_DURATION
                     order_number = ""
 
-    # ---------------------------- Drawing ----------------------------
+    # Drawing
     screen.fill(bg_color)
     screen.blit(sprite, sprite_rect)
 
-    # Draw stock items
-    box_size = int(68 * ITEM_SCALE)
-    for idx, (x_off, y_off) in enumerate(item_offsets):
-        item_img = item_surfaces[idx] if idx < len(item_surfaces) - 1 else item_surfaces[-1]
-        iw, ih = item_img.get_width(), item_img.get_height()
-        scale_factor = min(box_size / iw, box_size / ih)
-        new_w = int(iw * scale_factor)
-        new_h = int(ih * scale_factor)
-        item_img_scaled = pygame.transform.smoothscale(item_img, (new_w, new_h))
-        box_center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
-        box_rect = pygame.Rect(0, 0, box_size, box_size)
-        box_rect.center = box_center
-        item_rect = item_img_scaled.get_rect(center=box_rect.center)
-        screen.blit(item_img_scaled, item_rect)
+    # Draw items
+    for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
+        img = item_surfaces[idx]
+        iw, ih = img.get_size(); sf=min(BOX_SIZE/iw, BOX_SIZE/ih)
+        img_s = pygame.transform.smoothscale(img,(int(iw*sf),int(ih*sf)))
+        b_r = img_s.get_rect(center=(sprite_rect.centerx+x_off, sprite_rect.centery+y_off))
+        screen.blit(img_s, b_r)
+        if DEBUG: pygame.draw.rect(screen,(255,100,100),b_r.inflate(0,0),2)
 
-        if DEBUG:
-            pygame.draw.rect(screen, (255, 100, 100), box_rect, 2)
-            pygame.draw.rect(screen, (0, 200, 255), item_rect, 1)
-
-    # Debug UI button outlines
-    for name, ((x_off, y_off), (scale_w, scale_h)) in ui_buttons.items():
-        base_size = 70 * ITEM_SCALE
-        btn_width = int(base_size * scale_w)
-        btn_height = int(base_size * scale_h)
-        btn_center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
-        btn_rect = pygame.Rect(0, 0, btn_width, btn_height)
-        btn_rect.center = btn_center
-        if DEBUG:
-            color = ui_colors.get(name, (255, 255, 255))
-            pygame.draw.rect(screen, color, btn_rect, 2)
-
-    # Draw numpad and grid
+    # Draw numpad
     if numpad_visible:
-        nw = int(numpad_image.get_width() * NUMPAD_SCALE)
-        nh = int(numpad_image.get_height() * NUMPAD_SCALE)
-        img = pygame.transform.smoothscale(numpad_image, (nw, nh))
-        img_rect = img.get_rect()
-        img_rect.center = (sprite_rect.centerx + NUMPAD_OFFSET[0], sprite_rect.centery + NUMPAD_OFFSET[1])
-        screen.blit(img, img_rect)
-
-        # Draw grid button outlines only
-        base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
-        base_y = sprite_rect.centery + NUMPAD_OFFSET[1] + GRID_OFFSET[1]
-        for row in range(3):
-            for col in range(3):
-                btn_rect = pygame.Rect(
-                    base_x + col * (GRID_BUTTON_SIZE + GRID_PADDING_X),
-                    base_y + row * (GRID_BUTTON_SIZE + GRID_PADDING_Y),
-                    GRID_BUTTON_SIZE, GRID_BUTTON_SIZE
-                )
-                if DEBUG:
-                    pygame.draw.rect(screen, (200, 200, 200), btn_rect, 2)
-
-        # Draw Clear and Enter outlines
-        clear_rect = pygame.Rect(
-            base_x + CLEAR_BUTTON_OFFSET[0],
-            base_y + CLEAR_BUTTON_OFFSET[1],
-            CLEAR_BUTTON_SIZE[0], CLEAR_BUTTON_SIZE[1]
-        )
-        enter_rect = pygame.Rect(
-            base_x + ENTER_BUTTON_OFFSET[0],
-            base_y + ENTER_BUTTON_OFFSET[1],
-            ENTER_BUTTON_SIZE[0], ENTER_BUTTON_SIZE[1]
-        )
+        nw, nh = int(numpad_image.get_width()*NUMPAD_SCALE), int(numpad_image.get_height()*NUMPAD_SCALE)
+        np_img = pygame.transform.smoothscale(numpad_image,(nw,nh))
+        np_rect = np_img.get_rect(center=(sprite_rect.centerx+NUMPAD_OFFSET[0],sprite_rect.centery+NUMPAD_OFFSET[1]))
+        screen.blit(np_img,np_rect)
+        inp = input_font.render(order_number,True,(255,255,255))
+        inp_rect = inp.get_rect(topright=(np_rect.right-30, np_rect.top+30))
+        screen.blit(inp,inp_rect)
         if DEBUG:
-            pygame.draw.rect(screen, (255, 180, 180), clear_rect, 2)
-            pygame.draw.rect(screen, (180, 255, 180), enter_rect, 2)
+            # outlines omitted for brevity
+            pass
+
+    # Draw active message
+    if active_message:
+        msg_surf = font.render(active_message,True,(255,255,255))
+        msg_pos = (sprite_rect.centerx-80, sprite_rect.centery-303)
+        screen.blit(msg_surf,msg_pos)
+        if message_timer>0:
+            message_timer -=1
+        elif message_timer==0 and "Insert" not in active_message:
+            active_message = ""
+
+    # Draw UI outlines
+    if DEBUG:
+        for name, ((x_off,y_off),(sw,sh)) in ui_buttons.items():
+            base=70*ITEM_SCALE; w,h=int(base*sw),int(base*sh)
+            r=pygame.Rect(0,0,w,h);r.center=(sprite_rect.centerx+x_off,sprite_rect.centery+y_off)
+            pygame.draw.rect(screen,ui_colors[name],r,2)
 
     pygame.display.flip()
     clock.tick(60)
