@@ -18,10 +18,10 @@ sprite = pygame.transform.scale(original_sprite, (scaled_width, scaled_height))
 bg_color = sprite.get_at((0, 0))
 
 stock_list = [
-    "stock/chips.png", "stock/coffee.png", "stock/cola_can.png", "stock/lemonade.png",
-    "stock/orange_juice.png", "stock/cola_bottle.png", "stock/sword.png", "stock/mystery_potion.png",
-    "stock/nuke.png", "stock/pokeball.png", "stock/mystery_box.png", "stock/small_doll.png",
-    "stock/sold_out.png"
+    "picture/chips.png", "picture/coffee.png", "picture/cola_can.png", "picture/lemonade.png",
+    "picture/orange_juice.png", "picture/cola_bottle.png", "picture/sword.png", "picture/mystery_potion.png",
+    "picture/nuke.png", "picture/pokeball.png", "picture/mystery_box.png", "picture/small_doll.png",
+    "picture/sold_out.png"
 ]
 
 item_names = [
