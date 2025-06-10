@@ -49,19 +49,20 @@ CARD_SCALE = 0.7
 font = pygame.font.SysFont(None, 24)
 input_font = pygame.font.SysFont(None, 48)
 
-message_timer = 0               # frames remaining for timed messages (>0)
-MESSAGE_DURATION = 180          # 3 seconds at 60 FPS
+message_timer = 0  # frames remaining for timed messages (>0)
+MESSAGE_DURATION = 180  # 3 seconds at 60 FPS
 
 # active message; top of vending machine
-active_message = ""            # message to display
+active_message = ""  # message to display
 # order message; on top of numpad
-order_number = ""              # stores numpad input
+order_number = ""  # stores numpad input
 payment_mesg = ""
 
 # Selected item index for purchase
-selected_item = None             # index of last item chosen
+selected_item = None  # index of last item chosen
 # Cloned (dispensed) items indices
-cloned_items = []                # indices of items that were paid for and dispensed
+cloned_items = []  # indices of items that were paid for and dispensed
+
 
 # Payment success handler
 def payment_success():
@@ -72,6 +73,7 @@ def payment_success():
     selected_item = None
     valid_order = 0  # reset validity after payment
     message_timer = MESSAGE_DURATION  # show payment complete for set duration
+
 
 # ---------------------------- Load Sprites and Assets ----------------------------
 original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
@@ -119,11 +121,9 @@ ui_colors = {
     "dispenser": (255, 255, 200)
 }
 
-
 clock = pygame.time.Clock()
 running = True
 valid_order = 0
-
 
 # ---------------------------- Game Loop ----------------------------
 
@@ -168,7 +168,7 @@ while running:
                         numpad_visible = False
 
             # Item slot clicks
-            for idx, (x_off, y_off) in enumerate(item_offsets[:12]):    # set up collision rects for first 12 items
+            for idx, (x_off, y_off) in enumerate(item_offsets[:12]):  # set up collision rects for first 12 items
                 center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
                 rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE)
                 rect.center = center
@@ -189,22 +189,21 @@ while running:
                     sprite_rect.centerx + CARD_OFFSET[0],
                     sprite_rect.centery + CARD_OFFSET[1]
                 )
-                # only respond to clicks on the card image
+
+                # show item price on card reader
+                if valid_order != 0:
+                    # render message relative to card reader box
+                    price = item_names[int(valid_order) - 1].split(" - ")[1]
+                    payment_mesg = f"{price}"
+                else:
+                    payment_mesg = "..."
+
+                    # if card image is pressed
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     # trigger payment only if a valid order exists
                     if valid_order != 0:
-
-
-                        # render message relative to card reader
-
-                        price = item_names[int(valid_order) - 1].split(" - ")[1]
-                        payment_mesg = f"${price}"
-                        text_surf = font.render(payment_mesg, True, (255, 255, 255))
-                        text_rect = text_surf.get_rect(midtop=(card_click_rect.centerx, card_click_rect.centery))
-                        screen.blit(text_surf, text_rect)
                         payment_success()
-
                     else:
                         active_message = "No valid order"
                         message_timer = MESSAGE_DURATION
@@ -314,15 +313,12 @@ while running:
         elif message_timer == 0 and "Insert" not in active_message:
             active_message = ""
 
-    if payment_mesg:
-        msg_surf = font.render(payment_mesg, True, (255, 255, 255))
+    if payment_mesg and cardReader_visible:
+        msg_surf = input_font.render(payment_mesg, True, (255, 255, 255))
         msg_rect = msg_surf.get_rect(
-            center=(sprite_rect.centerx + CARD_OFFSET[0], sprite_rect.centery + CARD_OFFSET[1] - 60))
+            center=(sprite_rect.centerx + CARD_OFFSET[0]+5,
+                    sprite_rect.centery + CARD_OFFSET[1] -235))
         screen.blit(msg_surf, msg_rect)
-        if message_timer > 0:
-            message_timer -= 1
-        elif message_timer == 0 and "Insert" not in payment_mesg:
-            payment_mesg = ""
 
     # Draw UI outlines
     if DEBUG:
