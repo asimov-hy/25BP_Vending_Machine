@@ -44,10 +44,10 @@ CARD_OFFSET = (375, 250)
 CARD_SCALE = 0.7
 
 # ---------------------------- font Variables ----------------------------
-
 # Font for displaying messages
-font = pygame.font.SysFont(None, 24)
-input_font = pygame.font.SysFont(None, 48)
+font = pygame.font.SysFont('malgungothic', 24)
+input_font = pygame.font.SysFont('malgungothic', 48)
+cash_pay_btn_font = pygame.font.SysFont('malgungothic', 48)
 
 message_timer = 0  # frames remaining for timed messages (>0)
 MESSAGE_DURATION = 180  # 3 seconds at 60 FPS
@@ -66,17 +66,19 @@ cloned_items = []  # indices of items that were paid for and dispensed
 
 # Payment success handler
 def payment_success():
-    global active_message, cloned_items, selected_item, valid_order, message_timer
+    global active_message, cloned_items, selected_item, valid_order, message_timer, show_receipt, receipt_info
     active_message = "Payment complete"
     if selected_item is not None:
         cloned_items.append(selected_item)
     selected_item = None
     valid_order = 0  # reset validity after payment
     message_timer = MESSAGE_DURATION  # show payment complete for set duration
-
+    # Show receipt info
+    receipt_info = (get_today(), item_names[cloned_items[-1]], int(item_names[cloned_items[-1]].split('-')[1].replace('$', '').replace(',', '').strip()))
+    show_receipt = True
 
 # ---------------------------- Load Sprites and Assets ----------------------------
-original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
+original_sprite = pygame.image.load("picture/vm_sprite.png").convert_alpha()
 scaled_width = int(original_sprite.get_width() * VM_SCALE)
 scaled_height = int(original_sprite.get_height() * VM_SCALE)
 sprite = pygame.transform.scale(original_sprite, (scaled_width, scaled_height))
@@ -124,6 +126,117 @@ ui_colors = {
 clock = pygame.time.Clock()
 running = True
 valid_order = 0
+
+# ---------------------------- Cash UI (Left Side) ----------------------------
+CASH_LEFT_UNITS = [
+    {"img": pygame.image.load("picture/cash/cash_10000.png").convert_alpha(), "value": 10000, "scale": 1/6},
+    {"img": pygame.image.load("picture/cash/cash_5000.png").convert_alpha(), "value": 5000, "scale": 1/3},
+    {"img": pygame.image.load("picture/cash/cash_1000.png").convert_alpha(), "value": 1000, "scale": 1/3},
+]
+CASH_LEFT_SCALE = 1/3
+CASH_LEFT_MARGIN_X = 10
+CASH_LEFT_MARGIN_Y = 30
+CASH_LEFT_GAP = 18
+cash_left_rects = [None, None, None]
+inserted_cash = 0  # 투입된 현금 총액
+
+# ---------------------------- Cash Payment/Change UI ----------------------------
+CASH_PAY_BTN_RECT = pygame.Rect(10, 520, 120, 45)
+cash_pay_btn_font = pygame.font.SysFont('malgungothic', 32)
+change_to_return = {}  # {1000: 0, 500: 0, 100: 0}
+show_change = False
+
+def calc_and_set_change(change):
+    global change_to_return, show_change
+    change_to_return = {}
+    for unit in [1000, 500, 100]:
+        cnt, change = divmod(change, unit)
+        if cnt > 0:
+            change_to_return[unit] = cnt
+    show_change = bool(change_to_return)
+
+# ---------------------------- Stock Management ----------------------------
+# 상품별 최대 20개까지 재고 관리
+item_stocks = [20] * 12  # 12개 상품, 각 20개씩 초기화
+
+def check_stock(item_idx):
+    """해당 상품의 재고가 있는지 확인"""
+    return item_stocks[item_idx] > 0
+
+def decrease_stock(item_idx):
+    """결제 성공 시 재고 차감"""
+    if item_stocks[item_idx] > 0:
+        item_stocks[item_idx] -= 1
+
+def increase_stock(item_idx):
+    """환불/결제 취소 시 재고 복구"""
+    item_stocks[item_idx] += 1
+
+# ---------------------------- Payment/Refund Logic ----------------------------
+def process_cash_payment(selected_item, inserted_cash):
+    """현금 결제 처리 및 재고/거스름돈/메시지 반환"""
+    if selected_item is None:
+        return False, inserted_cash, "상품을 선택하세요"
+    price = int(item_names[selected_item].split('-')[1].replace('$', '').replace(',', '').strip())
+    if not check_stock(selected_item):
+        return False, inserted_cash, "상품이 소진되었습니다"
+    if inserted_cash < price:
+        return False, inserted_cash, "잔액이 부족합니다"
+    decrease_stock(selected_item)
+    change = inserted_cash - price
+    calc_and_set_change(change)
+    return True, 0, "현금 결제 완료"
+
+def process_card_payment(selected_item):
+    """카드 결제 처리 및 재고/메시지 반환"""
+    if selected_item is None:
+        return False, "상품을 선택하세요"
+    if not check_stock(selected_item):
+        return False, "상품이 소진되었습니다"
+    decrease_stock(selected_item)
+    return True, "카드 결제 완료"
+
+# ---------------------------- UI Drawing: Stock Count ----------------------------
+def draw_stock_counts(screen, sprite_rect):
+    for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
+        stock = item_stocks[idx]
+        stock_txt = font.render(f"{stock}", True, (255, 255, 0) if stock > 0 else (255, 80, 80))
+        pos = (sprite_rect.centerx + x_off - 28, sprite_rect.centery + y_off + BOX_SIZE//2 - 18)
+        screen.blit(stock_txt, pos)
+
+# ---------------------------- Receipt UI ----------------------------
+# 카드 결제 후 영수증 출력 기능
+show_receipt = False
+receipt_info = None  # (date, item, amount)
+RECEIPT_BTN_RECT = pygame.Rect(300, 500, 200, 45)
+RECEIPT_CLOSE_RECT = pygame.Rect(0, 0, 80, 40)  # 위치는 중앙에서 offset
+
+def get_today():
+    import datetime
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+
+def show_receipt_ui(screen, info):
+    # info: (date, item, amount)
+    bg = pygame.image.load('picture/cash/receipt_bg.png').convert_alpha()
+    bg = pygame.transform.smoothscale(bg, (340, 420))
+    rect = bg.get_rect(center=(screen.get_width()//2, screen.get_height()//2))
+    screen.blit(bg, rect)
+    # 내용 출력
+    font_big = pygame.font.SysFont('malgungothic', 28)
+    font_small = pygame.font.SysFont('malgungothic', 22)
+    y = rect.top + 80
+    screen.blit(font_big.render('영수증', True, (0,0,0)), (rect.left+110, rect.top+30))
+    screen.blit(font_small.render(f'   일시: {info[0]}', True, (0,0,0)), (rect.left+30, y))
+    y += 50
+    screen.blit(font_small.render(f'   품목: {info[1]}', True, (0,0,0)), (rect.left+30, y))
+    y += 50
+    screen.blit(font_small.render(f'   금액: {info[2]:,}원', True, (0,0,0)), (rect.left+30, y))
+    # 닫기 버튼
+    RECEIPT_CLOSE_RECT.center = (rect.centerx, rect.bottom-35)
+    pygame.draw.rect(screen, (200,50,50), RECEIPT_CLOSE_RECT, border_radius=8)
+    close_txt = font_small.render('닫기', True, (255,255,255))
+    txt_rect = close_txt.get_rect(center=RECEIPT_CLOSE_RECT.center)
+    screen.blit(close_txt, txt_rect)
 
 # ---------------------------- Game Loop ----------------------------
 
@@ -200,10 +313,18 @@ while running:
 
                     # if card image is pressed
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
-                    print("card clicked")
-                    # trigger payment only if a valid order exists
                     if valid_order != 0:
-                        payment_success()
+                        temp_selected = selected_item  # 결제 전 값 보존
+                        success, msg = process_card_payment(temp_selected)
+                        active_message = msg
+                        message_timer = 120 if not success else MESSAGE_DURATION
+                        if success:
+                            payment_success()
+                            # 카드 결제 성공 시 영수증 정보 저장 및 버튼 활성화
+                            show_receipt = False
+                            item_name = item_names[temp_selected].split(' - ')[0]
+                            price = int(item_names[temp_selected].split('-')[1].replace('$', '').replace(',', '').strip())
+                            receipt_info = (get_today(), item_name, price)
                     else:
                         active_message = "No valid order"
                         message_timer = MESSAGE_DURATION
@@ -248,6 +369,29 @@ while running:
                         valid_order = 0
                     order_number = ""
 
+            # 왼쪽 cash 이미지 클릭 시 투입금액 증가
+            for i, unit in enumerate(CASH_LEFT_UNITS):
+                rect = cash_left_rects[i]
+                if rect and rect.collidepoint(mouse_x, mouse_y):
+                    inserted_cash += unit["value"]
+
+            # 현금 결제 버튼 클릭
+            if CASH_PAY_BTN_RECT.collidepoint(mouse_x, mouse_y):
+                success, new_cash, msg = process_cash_payment(selected_item, inserted_cash)
+                inserted_cash = new_cash
+                active_message = msg
+                message_timer = 120 if not success else MESSAGE_DURATION
+                if success:
+                    payment_success()
+
+            # 영수증 출력 버튼 클릭
+            if receipt_info and RECEIPT_BTN_RECT.collidepoint(mouse_x, mouse_y):
+                show_receipt = True
+            # 영수증 닫기 버튼 클릭
+            if show_receipt and RECEIPT_CLOSE_RECT.collidepoint(mouse_x, mouse_y):
+                show_receipt = False
+                receipt_info = None
+
     # Drawing
     screen.fill(bg_color)
     screen.blit(sprite, sprite_rect)
@@ -261,6 +405,8 @@ while running:
         b_r = img_s.get_rect(center=(sprite_rect.centerx + x_off, sprite_rect.centery + y_off))
         screen.blit(img_s, b_r)
         if DEBUG: pygame.draw.rect(screen, (255, 100, 100), b_r.inflate(0, 0), 2)
+    # 상품별 재고 수량 표시
+    draw_stock_counts(screen, sprite_rect)
 
     # Draw numpad
     if numpad_visible:
@@ -319,6 +465,37 @@ while running:
             center=(sprite_rect.centerx + CARD_OFFSET[0]+5,
                     sprite_rect.centery + CARD_OFFSET[1] -235))
         screen.blit(msg_surf, msg_rect)
+
+    # Draw left cash images (10000, 5000, 1000)
+    cash_left_rects = []
+    for i, unit in enumerate(CASH_LEFT_UNITS):
+        img = unit["img"]
+        iw, ih = img.get_size()
+        scale = unit.get("scale", 1/3)
+        sw, sh = int(iw * scale), int(ih * scale)
+        x = CASH_LEFT_MARGIN_X
+        y = CASH_LEFT_MARGIN_Y + i * (sh + CASH_LEFT_GAP)
+        img_s = pygame.transform.smoothscale(img, (sw, sh))
+        rect = pygame.Rect(x, y, sw, sh)
+        screen.blit(img_s, rect)
+        cash_left_rects.append(rect)
+    # 현황판에 투입금액 표시 (한글로 변경)
+    cash_status_txt = input_font.render(f"투입금액: {inserted_cash:,}원", True, (255, 255, 0))
+    screen.blit(cash_status_txt, (CASH_LEFT_MARGIN_X, y + sh + 30))
+    # Draw 현금 결제 버튼
+    pygame.draw.rect(screen, (0, 120, 255), CASH_PAY_BTN_RECT, border_radius=8)
+    btn_txt = input_font.render("현금 결제", True, (255, 255, 255))
+    btn_rect = btn_txt.get_rect(center=CASH_PAY_BTN_RECT.center)
+    screen.blit(btn_txt, btn_rect)
+    # Draw 영수증 출력 버튼 (카드 결제 후)
+    if receipt_info and not show_receipt:
+        pygame.draw.rect(screen, (0, 180, 80), RECEIPT_BTN_RECT, border_radius=8)
+        btn_txt = input_font.render("영수증 출력", True, (255,255,255))
+        btn_rect = btn_txt.get_rect(center=RECEIPT_BTN_RECT.center)
+        screen.blit(btn_txt, btn_rect)
+    # Draw 영수증 UI
+    if show_receipt and receipt_info:
+        show_receipt_ui(screen, receipt_info)
 
     # Draw UI outlines
     if DEBUG:
