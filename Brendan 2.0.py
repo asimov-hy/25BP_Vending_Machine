@@ -134,6 +134,7 @@ ui_colors = {
 clock = pygame.time.Clock()
 running = True
 valid_order = 0
+inserted_money = 0
 
 # ---------------------------- Game Loop ----------------------------
 
@@ -351,6 +352,42 @@ while running:
             screen.blit(cash_img, cash_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (255, 255, 0), cash_rect, 2)
+            # create button for each cash image
+            cash_button_rect = pygame.Rect(
+                cash_rect.left, cash_rect.top, cash_rect.width, cash_rect.height
+            )
+            cash_button_rect.inflate_ip(20, 20)  # make it larger for easier clicking
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_x, mouse_y = event.pos
+                if cash_button_rect.collidepoint(mouse_x, mouse_y):
+                    if valid_order and 1 <= valid_order <= 12:
+                        # add money to inserted_money
+                        if i == 0:
+                            inserted_money += 10000
+                        elif i == 1:
+                            inserted_money += 5000
+                        elif i == 2:
+                            inserted_money += 1000
+                        elif i == 3:
+                            inserted_money += 500
+                        elif i == 4:
+                            inserted_money += 100
+
+                        # get price of selected item
+                        price_str = item_names[valid_order - 1].split('$')[-1].replace(',', '')
+                        item_price = int(price_str)
+                        active_mesg = f"Inserted: ${inserted_money}/${item_price}"
+                        message_timer = MESSAGE_DURATION
+
+                        # check if enough money inserted
+                        if inserted_money >= item_price:
+                            payment_success()
+                            inserted_money -= item_price
+                            active_message = f"Change: ${inserted_money}"
+                            inserted_money = 0
+                    else:
+                        active_message = "Choose an item"
+                        message_timer = 120
 
 
 
