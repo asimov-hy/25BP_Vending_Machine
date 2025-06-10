@@ -43,6 +43,14 @@ CARDREADER_SCALE = 0.6
 CARD_OFFSET = (375, 250)
 CARD_SCALE = 0.7
 
+# cash machine config
+CASH_MACHINE_OFFSET = (375, 150)
+CASH_MACHINE_SCALE = 0.7
+
+# cash images config
+cash_offsets = [(250, -200), (250, -100), (250, 0), (250, 100), (250, 200)]
+CASH_SCALE = 0.3
+
 # ---------------------------- font Variables ----------------------------
 
 # Font for displaying messages
@@ -88,6 +96,7 @@ card_image_src = pygame.image.load("picture/cash/card.png").convert_alpha()  # c
 
 numpad_visible = False
 cardReader_visible = False  # toggle for card reader display
+cash_machine_visible = False  # toggle for cash machine display
 
 # ---------------------------- Stock Items ----------------------------
 stock_list = [
@@ -164,9 +173,15 @@ while running:
                     if name == "numpad":
                         numpad_visible = not numpad_visible
                         cardReader_visible = False
+                        cash_machine_visible = False
                     elif name == "cardreader_icon":
                         cardReader_visible = not cardReader_visible
+                        cash_machine_visible = False
                         numpad_visible = False
+                    elif name == "cash":
+                        cash_machine_visible = not cash_machine_visible
+                        numpad_visible = False
+                        cardReader_visible = False
 
             # Item slot clicks
             for idx, (x_off, y_off) in enumerate(item_offsets[:12]):  # set up collision rects for first 12 items
@@ -303,6 +318,41 @@ while running:
             screen.blit(card_img, card_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (0, 255, 0), card_rect, 2)
+
+    # Draw cash machine:
+    if cash_machine_visible:
+        cash_machine_img_src = pygame.image.load("picture/cash/cash_machine.png").convert_alpha()
+        cm_w = int(cash_machine_img_src.get_width() * CASH_MACHINE_SCALE)
+        cm_h = int(cash_machine_img_src.get_height() * CASH_MACHINE_SCALE)
+        cash_machine_img = pygame.transform.smoothscale(cash_machine_img_src, (cm_w, cm_h))
+        cash_machine_rect = cash_machine_img.get_rect(
+            center=(sprite_rect.centerx + CASH_MACHINE_OFFSET[0], sprite_rect.centery + CASH_MACHINE_OFFSET[1])
+        )
+        screen.blit(cash_machine_img, cash_machine_rect)
+
+        if DEBUG:
+            pygame.draw.rect(screen, (0, 0, 255), cash_machine_rect, 2)
+
+        # show cash image: 10000, 5000, 1000, 500, 100
+        cash_images = [
+            "picture/cash/cash_10000.png", "picture/cash/cash_5000.png",
+            "picture/cash/cash_1000.png", "picture/cash/cash_500.png", "picture/cash/cash_100.png"
+        ]
+
+        for i, cash_path in enumerate(cash_images):
+            cash_img_src = pygame.image.load(cash_path).convert_alpha()
+            cash_w = int(cash_img_src.get_width() * CASH_SCALE)
+            cash_h = int(cash_img_src.get_height() * CASH_SCALE)
+            cash_img = pygame.transform.smoothscale(cash_img_src, (cash_w, cash_h))
+            cash_rect = cash_img.get_rect(
+                center=(sprite_rect.centerx + CASH_MACHINE_OFFSET[0] + cash_offsets[i][0],
+                        sprite_rect.centery + CASH_MACHINE_OFFSET[1] + cash_offsets[i][1])
+            )
+            screen.blit(cash_img, cash_rect)
+            if DEBUG:
+                pygame.draw.rect(screen, (255, 255, 0), cash_rect, 2)
+
+
 
     # Draw active message
     if active_message:
