@@ -4,23 +4,30 @@ import sys
 # ---------------------------- Initialization ----------------------------
 pygame.init()
 
+# debug options
 DEBUG = 1  # only controls outlines, not functionality
 click_pos = False  # for console logging
+
+# set up display
 initial_width, initial_height = 800, 600
 screen = pygame.display.set_mode((initial_width, initial_height), pygame.RESIZABLE)
 pygame.display.set_caption("Vending Machine Items Only")
 
-# ---------------------------- Constants ----------------------------
+# ---------------------------- image variables ----------------------------
+
 VM_SCALE = 0.54
 ITEM_SCALE = 0.70
+
 # Numpad grid configuration
 NUMPAD_OFFSET = (500, -150)
 NUMPAD_SCALE = 1
+
 # Numpad grid layout
 GRID_OFFSET = (-65, -60)
 GRID_BUTTON_SIZE = 40
 GRID_PADDING_X = 5
 GRID_PADDING_Y = 8
+
 # Clear/Enter button configuration
 CLEAR_BUTTON_SIZE = (60, 30)
 CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
@@ -31,19 +38,26 @@ ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10,
 # card reader config
 CARDREADER_OFFSET = (375, 50)
 CARDREADER_SCALE = 0.6
+
 # card config
 CARD_OFFSET = (375, 250)
 CARD_SCALE = 0.7
+
+# ---------------------------- font Variables ----------------------------
 
 # Font for displaying messages
 font = pygame.font.SysFont(None, 24)
 input_font = pygame.font.SysFont(None, 48)
 
-# Message and input state
-active_message = ""            # message to display
 message_timer = 0               # frames remaining for timed messages (>0)
 MESSAGE_DURATION = 180          # 3 seconds at 60 FPS
+
+# active message; top of vending machine
+active_message = ""            # message to display
+# order message; on top of numpad
 order_number = ""              # stores numpad input
+payment_mesg = ""
+
 # Selected item index for purchase
 selected_item = None             # index of last item chosen
 # Cloned (dispensed) items indices
@@ -105,22 +119,34 @@ ui_colors = {
     "dispenser": (255, 255, 200)
 }
 
-# ---------------------------- Game Loop ----------------------------
+
 clock = pygame.time.Clock()
 running = True
 valid_order = 0
 
+
+# ---------------------------- Game Loop ----------------------------
+
 while running:
+    # create vending machine sprite rect
     window_width, window_height = screen.get_size()
     sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2))
 
+    # Handle events
     for event in pygame.event.get():
+        # quit event
         if event.type == pygame.QUIT:
             running = False
+
+        # VIDEORESIZE is triggered when the window is resized
         elif event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+
+        # trigger debug mode when pressed D
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_d:
             DEBUG = not DEBUG
+
+        # mouse click events
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_x, mouse_y = event.pos
             # UI toggles
@@ -131,6 +157,8 @@ while running:
                 center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
                 rect = pygame.Rect(0, 0, w, h)
                 rect.center = center
+
+                # if click position is within the button rect of the buttons
                 if rect.collidepoint(mouse_x, mouse_y):
                     if name == "numpad":
                         numpad_visible = not numpad_visible
@@ -140,18 +168,19 @@ while running:
                         numpad_visible = False
 
             # Item slot clicks
-            for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
+            for idx, (x_off, y_off) in enumerate(item_offsets[:12]):    # set up collision rects for first 12 items
                 center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
                 rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE)
                 rect.center = center
+                # check if the mouse click is within the item rect
                 if rect.collidepoint(mouse_x, mouse_y):
                     selected_item = idx
                     valid_order = 0  # reset until confirmed by Enter
                     active_message = f"{idx + 1}: {item_names[idx]}"
                     message_timer = MESSAGE_DURATION
 
-            # Card image click: trigger payment if visible
-            if cardReader_visible and selected_item is not None:
+            # card payment chcker
+            if cardReader_visible:
                 # compute scaled card image rect
                 cw = int(card_image_src.get_width() * CARD_SCALE)
                 ch = int(card_image_src.get_height() * CARD_SCALE)
@@ -164,12 +193,17 @@ while running:
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     # trigger payment only if a valid order exists
-                    if valid_order == 1:
-                        payment_success()
+                    if valid_order != 0:
+
+
                         # render message relative to card reader
-                        text_surf = font.render(active_message, True, (255, 255, 255))
-                        text_rect = text_surf.get_rect(midtop=(card_click_rect.centerx, card_click_rect.bottom -100))
+
+                        price = item_names[int(valid_order) - 1].split(" - ")[1]
+                        payment_mesg = f"${price}"
+                        text_surf = font.render(payment_mesg, True, (255, 255, 255))
+                        text_rect = text_surf.get_rect(midtop=(card_click_rect.centerx, card_click_rect.centery))
                         screen.blit(text_surf, text_rect)
+                        payment_success()
 
                     else:
                         active_message = "No valid order"
@@ -199,13 +233,16 @@ while running:
                     active_message = ""
                     message_timer = 0
                     valid_order = 0  # invalidate order on clear
+                # enter button
                 if e_r.collidepoint(mouse_x, mouse_y):
                     # insert price message, persistent
                     if order_number.isdigit() and 1 <= int(order_number) <= 12:
-                        price = item_names[int(order_number) - 1].split(" - ")[1]
-                        active_message = f"Insert {price}"
-                        message_timer = 0  # persistent until clear
-                        valid_order = 1
+                        valid_order = int(order_number)
+                        selected_item = valid_order - 1
+                        # ooutput: itemname chosen!
+                        active_message = f"{item_names[selected_item].split(' - ')[0]} chosen!"
+                        message_timer = -1  # special flag to make message persistent
+
                     else:
                         active_message = "No such item"
                         message_timer = 120
@@ -250,6 +287,7 @@ while running:
             center=(sprite_rect.centerx + CARDREADER_OFFSET[0], sprite_rect.centery + CARDREADER_OFFSET[1])
         )
         screen.blit(card_img, card_rect)
+
         if DEBUG:
             pygame.draw.rect(screen, (255, 0, 0), card_rect, 2)
         # show card image twice for effect
@@ -275,6 +313,16 @@ while running:
             message_timer -= 1
         elif message_timer == 0 and "Insert" not in active_message:
             active_message = ""
+
+    if payment_mesg:
+        msg_surf = font.render(payment_mesg, True, (255, 255, 255))
+        msg_rect = msg_surf.get_rect(
+            center=(sprite_rect.centerx + CARD_OFFSET[0], sprite_rect.centery + CARD_OFFSET[1] - 60))
+        screen.blit(msg_surf, msg_rect)
+        if message_timer > 0:
+            message_timer -= 1
+        elif message_timer == 0 and "Insert" not in payment_mesg:
+            payment_mesg = ""
 
     # Draw UI outlines
     if DEBUG:
