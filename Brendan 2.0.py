@@ -66,13 +66,14 @@ cloned_items = []  # indices of items that were paid for and dispensed
 
 # Payment success handler
 def payment_success():
-    global active_message, cloned_items, selected_item, valid_order, message_timer
+    global active_message, cloned_items, selected_item, valid_order, message_timer, payment_mesg
     active_message = "Payment complete"
     if selected_item is not None:
         cloned_items.append(selected_item)
     selected_item = None
     valid_order = 0  # reset validity after payment
     message_timer = MESSAGE_DURATION  # show payment complete for set duration
+    payment_mesg = "..."
 
 
 # ---------------------------- Load Sprites and Assets ----------------------------
