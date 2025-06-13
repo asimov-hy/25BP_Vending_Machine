@@ -54,7 +54,7 @@ cloned_items = []   # (original item name, positionx, positiony)
 # ---------------------------- Scaling Factors ----------------------------
 VM_SCALE = 0.54
 ITEM_SCALE = 0.70
-NUMPAD_SCALE = 1
+NUMPAD_SCALE = 0.27
 CARDREADER_SCALE = 0.6
 CARD_SCALE = 0.7
 CASH_MACHINE_SCALE = 0.65
@@ -64,20 +64,28 @@ CLONEITEM_SCALE = 2
 
 # ---------------------------- Layout Offsets ----------------------------
 NUMPAD_OFFSET = (500, -150)
-GRID_OFFSET = (-65, -60)
+GRID_OFFSET = (-90, -75)
 CARDREADER_OFFSET = (375, 50)
 CARD_OFFSET = (375, 250)
 CASH_MACHINE_OFFSET = (375, 150)
 cash_offsets = [(250, -200), (250, -100), (250, 0), (250, 100), (250, 200)]
 
 # ---------------------------- Button & Grid Config ----------------------------
-GRID_BUTTON_SIZE = 40
+
+numpad_buttons = [
+    "1", "2", "3",
+    "4", "5", "6",
+    "7", "8", "9",
+    "C", "0", "E"
+]
+GRID_BUTTON_WIDTH =60  # wider button
+GRID_BUTTON_HEIGHT = 53
 GRID_PADDING_X = 5
 GRID_PADDING_Y = 8
-CLEAR_BUTTON_SIZE = (60, 30)
-ENTER_BUTTON_SIZE = (60, 30)
-CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
-ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
+# CLEAR_BUTTON_SIZE = (60, 30)
+# ENTER_BUTTON_SIZE = (60, 30)
+# CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
+# ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
 
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
@@ -260,46 +268,37 @@ while running:
                 base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
                 base_y = sprite_rect.centery + NUMPAD_OFFSET[1] + GRID_OFFSET[1]
 
-                # Check for digit button clicks (1-9)
-                for r in range(3):
-                    for c in range(3):
-                        rct = pygame.Rect(
-                            base_x + c * (GRID_BUTTON_SIZE + GRID_PADDING_X),
-                            base_y + r * (GRID_BUTTON_SIZE + GRID_PADDING_Y),
-                            GRID_BUTTON_SIZE, GRID_BUTTON_SIZE
-                        )
-                        if rct.collidepoint(mouse_x, mouse_y):
-                            order_number += str(r * 3 + c + 1)
+                for i, label in enumerate(numpad_buttons):
+                    r = i // 3
+                    c = i % 3
+                    btn_rect = pygame.Rect(
+                        base_x + c * GRID_BUTTON_WIDTH,
+                        base_y + r * GRID_BUTTON_HEIGHT,
+                        GRID_BUTTON_WIDTH, GRID_BUTTON_HEIGHT
+                    )
+                    if btn_rect.collidepoint(mouse_x, mouse_y):
+                        if label == "C":
+                            order_number = ""
+                            banner_message = ""
+                            message_timer = 0
+                            valid_order = 0
+                        elif label == "E":
+                            if order_number.isdigit() and 1 <= int(order_number) <= 12:
+                                valid_order = int(order_number)
+                                selected_item = valid_order - 1
+                                payment_money = int(item_names[valid_order - 1].split('$')[-1].replace(',', ''))
+                                banner_message = f"Insert: ${payment_money - inserted_money}"
+                                debug_message = f"Order: {order_number}, Pay: ${payment_money}"
+                                message_timer = -1
+                            else:
+                                banner_message = "No such item"
+                                message_timer = MESSAGE_DURATION
+                                valid_order = 0
+                            order_number = ""
+                        else:
+                            order_number += label
                             if len(order_number) > 2:
                                 order_number = order_number[1:]
-
-                # Check for clear and enter button clicks
-                clear_check = pygame.Rect(base_x + CLEAR_BUTTON_OFFSET[0], base_y + CLEAR_BUTTON_OFFSET[1], *CLEAR_BUTTON_SIZE)
-                enter_check = pygame.Rect(base_x + ENTER_BUTTON_OFFSET[0], base_y + ENTER_BUTTON_OFFSET[1], *ENTER_BUTTON_SIZE)
-
-                # if clear button is clicked, reset order number
-                if clear_check.collidepoint(mouse_x, mouse_y):
-                    order_number = ""
-                    banner_message = ""
-                    message_timer = 0
-                    valid_order = 0
-
-                # if enter button is clicked, validate order number
-                if enter_check.collidepoint(mouse_x, mouse_y):
-                    if order_number.isdigit() and 1 <= int(order_number) <= 12:
-                        valid_order = int(order_number)
-                        selected_item = valid_order - 1
-                        payment_money = int(item_names[valid_order - 1].split('$')[-1].replace(',', ''))
-                        banner_message = f"Insert: ${payment_money  - inserted_money}"
-                        debug_message = f"Order Number: {order_number}, Valid Order: {valid_order}, Payment Money: ${payment_money}"
-                        message_timer = -1
-
-
-                    else:
-                        banner_message = "No such item"
-                        message_timer = MESSAGE_DURATION
-                        valid_order = 0
-                    order_number = ""
 
             # ---------------- Card Payment Handling ----------------
             if cardReader_visible:
@@ -404,10 +403,11 @@ while running:
             center=(sprite_rect.centerx + NUMPAD_OFFSET[0], sprite_rect.centery + NUMPAD_OFFSET[1]))
         screen.blit(np_img, np_rect)
         inp = input_font.render(order_number, True, (255, 255, 255))
-        inp_rect = inp.get_rect(topright=(np_rect.right - 30, np_rect.top + 30))
+        inp_rect = inp.get_rect(topright=(np_rect.right - 30, np_rect.top + 28))
         screen.blit(inp, inp_rect)
         if DEBUG:
-            pass
+            pygame.draw.rect(screen, (255, 0, 0), np_rect, 2)
+            pygame.draw.rect(screen, (0, 255, 0), inp_rect, 2)
 
     # Draw card reader image
     if cardReader_visible:
@@ -536,18 +536,28 @@ while running:
 
     # --------------------------------------- Debugging ---------------------------------------
     if DEBUG:
+        # Draw debug rectangles for all UI buttons
         for name, ((x_off, y_off), (sw, sh)) in ui_buttons.items():
             bs = 70 * ITEM_SCALE
             rw, rh = int(bs * sw), int(bs * sh)
             r = pygame.Rect(0, 0, rw, rh)
             r.center = (sprite_rect.centerx + x_off, sprite_rect.centery + y_off)
             pygame.draw.rect(screen, ui_colors[name], r, 2)
-        card_off, card_scale = ui_buttons['cardreader_button']
-        bs = 70 * ITEM_SCALE
-        cw, ch = int(bs * card_scale[0]), int(bs * card_scale[1])
-        card_btn_rect = pygame.Rect(0, 0, cw, ch)
-        card_btn_rect.center = (sprite_rect.centerx + card_off[0], sprite_rect.centery + card_off[1])
-        pygame.draw.rect(screen, (255, 0, 255), card_btn_rect, 2)
+
+        if numpad_visible:
+
+            base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
+            base_y = sprite_rect.centery + NUMPAD_OFFSET[1] + GRID_OFFSET[1]
+
+            for i, label in enumerate(numpad_buttons):
+                r = i // 3
+                c = i % 3
+                btn_rect = pygame.Rect(
+                    base_x + c * GRID_BUTTON_WIDTH,
+                    base_y + r * GRID_BUTTON_HEIGHT,
+                    GRID_BUTTON_WIDTH, GRID_BUTTON_HEIGHT
+                )
+                pygame.draw.rect(screen, (0, 255, 0), btn_rect, 2)
 
     pygame.display.flip()
     clock.tick(60)
