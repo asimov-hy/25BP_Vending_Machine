@@ -27,6 +27,9 @@ cardReader_visible = False
 cash_machine_visible = False
 
 return_change = False
+cloned_items = []
+spawn_timer = 0
+SPAWN_DURATION = 30
 
 # ---------------------------- Fonts & Messages ----------------------------
 font = pygame.font.SysFont(None, 24)
@@ -345,8 +348,8 @@ while running:
 
                             if inserted_money >= payment_money:
                                 inserted_money -= payment_money
-                                payment_success()
                                 return_change = True
+                                payment_success()
 
 
 
@@ -354,6 +357,18 @@ while running:
                             banner_message = "No valid order"
                             message_timer = MESSAGE_DURATION
                             valid_order = 0
+
+            # -------------------- Cloned Item Handling --------------------
+            # if clone item is clicked it is destroyed
+            for idx, item in enumerate(cloned_items):
+                item_rect = item.get_rect(center=(sprite_rect.centerx + item_offsets[idx][0],
+                                                   sprite_rect.centery + item_offsets[idx][1]))
+                if item_rect.collidepoint(mouse_x, mouse_y):
+                    cloned_items.pop(idx)
+                    banner_message = "Item removed"
+                    message_timer = MESSAGE_DURATION
+                    debug_message = "Item removed from cloned items"
+                    break
 
     # --------------------------------------------Draw --------------------------------------------
     screen.fill(bg_color)
@@ -439,6 +454,22 @@ while running:
             screen.blit(cash_img, cash_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (255, 255, 0), cash_rect, 2)
+
+    # create clone of cash to the amount of change at position of cash_icon
+    if return_change:
+        if inserted_money == 0:
+            return_change = False
+        else:
+            # banner_message of change left
+            banner_message = f"Change: ${inserted_money}"
+            # subtract largest cash value from inserted_money
+            # create clone of cash image at position of cash_icon
+            # update banner_message with change left
+            # if inserted_money left then wait for duration else return_change = False
+
+
+
+
 
 
     # -------------------------------------- Draw  message --------------------------------------
