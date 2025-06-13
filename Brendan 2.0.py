@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 # ---------------------------- Initialization ----------------------------
 pygame.init()
@@ -48,7 +49,7 @@ debug_message = ""
 
 # ---------------------------- Selection State ----------------------------
 selected_item = None
-cloned_items = []
+cloned_items = []   # (original item name, positionx, positiony)
 
 # ---------------------------- Scaling Factors ----------------------------
 VM_SCALE = 0.54
@@ -58,6 +59,8 @@ CARDREADER_SCALE = 0.6
 CARD_SCALE = 0.7
 CASH_MACHINE_SCALE = 0.65
 CASH_SCALE = 0.3
+CLONECASH_SCALE = 0.2
+CLONEITEM_SCALE = 2
 
 # ---------------------------- Layout Offsets ----------------------------
 NUMPAD_OFFSET = (500, -150)
@@ -138,14 +141,18 @@ cash_images = [
     "picture/cash/cash_5000.png",
     "picture/cash/cash_1000.png",
     "picture/cash/cash_500.png",
+    "picture/cash/cash_100.png"
 ]
-
-item_surfaces = [pygame.image.load(path).convert_alpha() for path in stock_list]
 
 row_offsets = [-205, -124, -45]
 col_offsets = [-151, -76, -4, 66]
 item_offsets = [(x, y) for y in row_offsets for x in col_offsets]
 BOX_SIZE = int(68 * ITEM_SCALE)
+
+item_surfaces = []
+for path in stock_list:
+    img = pygame.image.load(path).convert_alpha()
+    item_surfaces.append(img)
 
 # ---------------------------- Game Loop ----------------------------
 
@@ -153,7 +160,16 @@ def payment_success():
     global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message
     banner_message = "Payment complete"
     if selected_item is not None:
-        cloned_items.append(selected_item)
+        dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
+        dispenser_y = sprite_rect.centery + ui_buttons["dispenser"][0][1]
+        rand_x = dispenser_x + random.randint(-200, 200)
+        rand_y = dispenser_y + random.randint(-50, 50)
+
+        cloned_items.append({
+            "type": "item",
+            "index": selected_item,
+            "pos": (rand_x, rand_y)
+        })
     selected_item = None
     valid_order = 0
 
@@ -351,8 +367,6 @@ while running:
                                 return_change = True
                                 payment_success()
 
-
-
                         else:
                             banner_message = "No valid order"
                             message_timer = MESSAGE_DURATION
@@ -360,15 +374,12 @@ while running:
 
             # -------------------- Cloned Item Handling --------------------
             # if clone item is clicked it is destroyed
-            for idx, item in enumerate(cloned_items):
-                item_rect = item.get_rect(center=(sprite_rect.centerx + item_offsets[idx][0],
-                                                   sprite_rect.centery + item_offsets[idx][1]))
-                if item_rect.collidepoint(mouse_x, mouse_y):
+            for idx, cloned in enumerate(cloned_items):
+                img_rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE)
+                img_rect.center = cloned["pos"]
+                if img_rect.collidepoint(mouse_x, mouse_y):
+                    debug_message = f"Cloned Item {idx} clicked"
                     cloned_items.pop(idx)
-                    banner_message = "Item removed"
-                    message_timer = MESSAGE_DURATION
-                    debug_message = "Item removed from cloned items"
-                    break
 
     # --------------------------------------------Draw --------------------------------------------
     screen.fill(bg_color)
@@ -426,7 +437,6 @@ while running:
             screen.blit(card_img, card_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (0, 255, 0), card_rect, 2)
-
     # Draw cash machine:
     if cash_machine_visible:
         cash_machine_img_src = pygame.image.load("picture/cash/cash_machine.png").convert_alpha()
@@ -455,24 +465,53 @@ while running:
             if DEBUG:
                 pygame.draw.rect(screen, (255, 255, 0), cash_rect, 2)
 
-    # create clone of cash to the amount of change at position of cash_icon
+    # draw cloned items
+    for cloned in cloned_items:
+        if cloned["type"] == "cash":
+            img = pygame.image.load(cash_images[cloned["index"]]).convert_alpha()
+            cw = int(img.get_width() * CLONECASH_SCALE)
+            ch = int(img.get_height() * CLONECASH_SCALE)
+            img = pygame.transform.smoothscale(img, (cw, ch))
+            img_rect = img.get_rect(center=cloned["pos"])
+            screen.blit(img, img_rect)
+            if DEBUG:
+                pygame.draw.rect(screen, (200, 200, 0), img_rect, 2)
+
+        elif cloned["type"] == "item":
+            img = item_surfaces[cloned["index"]]
+            iw, ih = img.get_size()
+            sf = min(BOX_SIZE / iw, BOX_SIZE / ih) * CLONEITEM_SCALE
+            img_s = pygame.transform.smoothscale(img, (int(iw * sf), int(ih * sf)))
+            b_r = img_s.get_rect(center=cloned["pos"])
+            screen.blit(img_s, b_r)
+            if DEBUG:
+                pygame.draw.rect(screen, (200, 0, 200), b_r.inflate(0, 0), 2)
+
+    # change logic
     if return_change:
         if inserted_money == 0:
             return_change = False
+        elif spawn_timer <= 0:
+            denominations = [10000, 5000, 1000, 500, 100]
+            for i, value in enumerate(denominations):
+                if inserted_money >= value:
+                    inserted_money -= value
+                    spawn_timer = SPAWN_DURATION
+
+                    # Calculate position for cash clone spawn near cash dispenser
+                    x_variation = random.randint(-50, 50)
+                    y_variation = random.randint(-50, 50)
+                    clone_pos = (
+                        sprite_rect.centerx + ui_buttons["cash"][0][0] + x_variation,
+                        sprite_rect.centery + ui_buttons["cash"][0][1] + y_variation
+                    )
+                    cloned_items.append({"type": "cash", "index": i, "pos": clone_pos})
+                    break
         else:
-            # banner_message of change left
-            banner_message = f"Change: ${inserted_money}"
-            # subtract largest cash value from inserted_money
-            # create clone of cash image at position of cash_icon
-            # update banner_message with change left
-            # if inserted_money left then wait for duration else return_change = False
+            spawn_timer -= 1
 
 
-
-
-
-
-    # -------------------------------------- Draw  message --------------------------------------
+    # --------------------------------------   message --------------------------------------
     # Draw active message
     if banner_message:
         msg_surf = font.render(banner_message, True, (255, 255, 255))
