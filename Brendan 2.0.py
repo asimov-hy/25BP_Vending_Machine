@@ -131,9 +131,11 @@ item_names = [
 ]
 
 cash_images = [
-            "picture/cash/cash_10000.png", "picture/cash/cash_5000.png",
-            "picture/cash/cash_1000.png", "picture/cash/cash_500.png", "picture/cash/cash_100.png"
-        ]
+    "picture/cash/cash_10000.png",
+    "picture/cash/cash_5000.png",
+    "picture/cash/cash_1000.png",
+    "picture/cash/cash_500.png",
+]
 
 item_surfaces = [pygame.image.load(path).convert_alpha() for path in stock_list]
 
