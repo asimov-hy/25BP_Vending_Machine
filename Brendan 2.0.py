@@ -97,6 +97,9 @@ GRID_PADDING_Y = 8
 receipt_width = 400
 receipt_height = 400
 
+receipt_paid = 0
+receipt_change = 0
+
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
     "numpad": ((161, -120), (1.5, 2.0)),
@@ -334,6 +337,7 @@ while running:
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     if valid_order != 0:
+                        receipt_paid = payment_money
                         payment_success()
                     else:
                         banner_message = "No valid order"
@@ -376,8 +380,11 @@ while running:
 
                             if inserted_money >= payment_money:
                                 inserted_money -= payment_money
-                                return_change = True
+                                receipt_paid = payment_money + inserted_money
+                                receipt_change = inserted_money
                                 payment_success()
+                                return_change = True
+
 
                         else:
                             banner_message = "No valid order"
@@ -536,8 +543,8 @@ while running:
             "",
             "  --------------------------",
             f"  TOTAL          $ {payment_money:,}",
-            f"  PAID           $ {payment_money + inserted_money:,}",
-            f"  CHANGE         $ {inserted_money:,}",
+            f"  PAID           $ {receipt_paid:,}",
+            f"  CHANGE         $ {receipt_change:,}",
             "",
             "  --------------------------",
             "",
