@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import datetime
 
 # ---------------------------- Initialization ----------------------------
 pygame.init()
@@ -26,6 +27,7 @@ inserted_money = 0
 numpad_visible = False
 cardReader_visible = False
 cash_machine_visible = False
+receipt_visible = False
 
 return_change = False
 cloned_items = []
@@ -50,6 +52,8 @@ debug_message = ""
 # ---------------------------- Selection State ----------------------------
 selected_item = None
 cloned_items = []   # (original item name, positionx, positiony)
+last_purchased_item = None
+purchase_time = ""
 
 # ---------------------------- Scaling Factors ----------------------------
 VM_SCALE = 0.54
@@ -67,7 +71,7 @@ NUMPAD_OFFSET = (500, -150)
 GRID_OFFSET = (-90, -75)
 CARDREADER_OFFSET = (375, 50)
 CARD_OFFSET = (375, 250)
-CASH_MACHINE_OFFSET = (375, 150)
+CASH_MACHINE_OFFSET = (380, 150)
 cash_offsets = [(250, -200), (250, -100), (250, 0), (250, 100), (250, 200)]
 
 # ---------------------------- Button & Grid Config ----------------------------
@@ -86,6 +90,10 @@ GRID_PADDING_Y = 8
 # ENTER_BUTTON_SIZE = (60, 30)
 # CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
 # ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
+
+
+receipt_width = 500
+receipt_height = 500
 
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
@@ -165,8 +173,9 @@ for path in stock_list:
 # ---------------------------- Game Loop ----------------------------
 
 def payment_success():
-    global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message
+    global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message, receipt_visible, last_purchased_item, purchase_time
     banner_message = "Payment complete"
+    receipt_visible = True
     if selected_item is not None:
         dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
         dispenser_y = sprite_rect.centery + ui_buttons["dispenser"][0][1]
@@ -178,6 +187,8 @@ def payment_success():
             "index": selected_item,
             "pos": (rand_x, rand_y)
         })
+    last_purchased_item = selected_item
+    purchase_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     selected_item = None
     valid_order = 0
 
@@ -380,6 +391,16 @@ while running:
                     debug_message = f"Cloned Item {idx} clicked"
                     cloned_items.pop(idx)
 
+            # -------------------- receipt handling --------------------
+            # destroy receipt if clicked
+            if receipt_visible:
+                receipt_rect = pygame.Rect(0, 0, 200, 100)
+                receipt_rect.center = (sprite_rect.centerx, sprite_rect.centery + 200)
+                if receipt_rect.collidepoint(mouse_x, mouse_y):
+                    debug_message = "Receipt clicked"
+                    receipt_visible = False
+
+
     # --------------------------------------------Draw --------------------------------------------
     screen.fill(bg_color)
     screen.blit(sprite, sprite_rect)
@@ -437,6 +458,7 @@ while running:
             screen.blit(card_img, card_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (0, 255, 0), card_rect, 2)
+
     # Draw cash machine:
     if cash_machine_visible:
         cash_machine_img_src = pygame.image.load("picture/cash/cash_machine.png").convert_alpha()
@@ -486,6 +508,40 @@ while running:
             screen.blit(img_s, b_r)
             if DEBUG:
                 pygame.draw.rect(screen, (200, 0, 200), b_r.inflate(0, 0), 2)
+
+    # draw receipt
+    if receipt_visible:
+
+        receipt_rect = pygame.Rect(0, 0, receipt_width, receipt_height)
+        receipt_rect.center = (sprite_rect.centerx-450, sprite_rect.centery)
+
+        # Draw receipt background image
+        receipt_bg_img = pygame.image.load("picture/cash/receipt_bg.png").convert_alpha()
+        receipt_bg_img = pygame.transform.scale(receipt_bg_img, (receipt_width, receipt_height))
+        screen.blit(receipt_bg_img, receipt_rect)
+
+        if DEBUG:
+            pygame.draw.rect(screen, (0, 132, 0), receipt_rect, 2)  # black border
+
+        # Display text lines (mock receipt)
+        lines = [
+            "    BRENDAN VENDING MACHINE",
+            "     Seoul, South Korea",
+            f"  {purchase_time}",
+            "  ---------------------------",
+            "  ITEM         PRICE",
+            f"  {item_names[last_purchased_item].split(' - ')[0]:<12} ₩{payment_money}",
+            "  ---------------------------",
+            f"  TOTAL        ₩{payment_money}",
+            f"  PAID         ₩{payment_money + inserted_money}",
+            f"  CHANGE       ₩{inserted_money}",
+            "  ---------------------------",
+            "  THANK YOU FOR YOUR VISIT"
+        ]
+
+        for i, line in enumerate(lines):
+            text = font.render(line, True, (0, 0, 0))
+            screen.blit(text, (receipt_rect.x+100, receipt_rect.y + 100 + i * 18))
 
     # change logic
     if return_change:
