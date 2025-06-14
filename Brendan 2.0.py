@@ -38,6 +38,8 @@ SPAWN_DURATION = 30
 font = pygame.font.SysFont(None, 24)
 input_font = pygame.font.SysFont(None, 48)
 
+mono_font = pygame.font.SysFont("Courier New", 20)
+
 # message for item
 MESSAGE_DURATION = 180
 message_timer = 0
@@ -92,8 +94,8 @@ GRID_PADDING_Y = 8
 # ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
 
 
-receipt_width = 500
-receipt_height = 500
+receipt_width = 400
+receipt_height = 400
 
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
@@ -179,7 +181,7 @@ def payment_success():
     if selected_item is not None:
         dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
         dispenser_y = sprite_rect.centery + ui_buttons["dispenser"][0][1]
-        rand_x = dispenser_x + random.randint(-200, 200)
+        rand_x = dispenser_x + random.randint(-150, 150)
         rand_y = dispenser_y + random.randint(-50, 50)
 
         cloned_items.append({
@@ -394,8 +396,9 @@ while running:
             # -------------------- receipt handling --------------------
             # destroy receipt if clicked
             if receipt_visible:
-                receipt_rect = pygame.Rect(0, 0, 200, 100)
-                receipt_rect.center = (sprite_rect.centerx, sprite_rect.centery + 200)
+                receipt_rect = pygame.Rect(0, 0, receipt_width, receipt_height)
+                receipt_rect.center = (sprite_rect.centerx - 450, sprite_rect.centery)
+
                 if receipt_rect.collidepoint(mouse_x, mouse_y):
                     debug_message = "Receipt clicked"
                     receipt_visible = False
@@ -520,28 +523,32 @@ while running:
         receipt_bg_img = pygame.transform.scale(receipt_bg_img, (receipt_width, receipt_height))
         screen.blit(receipt_bg_img, receipt_rect)
 
-        if DEBUG:
-            pygame.draw.rect(screen, (0, 132, 0), receipt_rect, 2)  # black border
-
         # Display text lines (mock receipt)
         lines = [
-            "    BRENDAN VENDING MACHINE",
-            "     Seoul, South Korea",
+            "  BRENDAN THE VENDING MACHINE",
+            "",
+            "",
+            "   Seoul, South Korea",
             f"  {purchase_time}",
-            "  ---------------------------",
-            "  ITEM         PRICE",
-            f"  {item_names[last_purchased_item].split(' - ')[0]:<12} ₩{payment_money}",
-            "  ---------------------------",
-            f"  TOTAL        ₩{payment_money}",
-            f"  PAID         ₩{payment_money + inserted_money}",
-            f"  CHANGE       ₩{inserted_money}",
-            "  ---------------------------",
-            "  THANK YOU FOR YOUR VISIT"
+            "  --------------------------",
+            "  ITEM           PRICE",
+            f"  {item_names[last_purchased_item].split(' - ')[0]:<14} $ {payment_money:,}",
+            "",
+            "  --------------------------",
+            f"  TOTAL          $ {payment_money:,}",
+            f"  PAID           $ {payment_money + inserted_money:,}",
+            f"  CHANGE         $ {inserted_money:,}",
+            "",
+            "  --------------------------",
+            "",
+            "  THANK YOU FOR YOUR PURCHASE",
+            ""
         ]
 
         for i, line in enumerate(lines):
-            text = font.render(line, True, (0, 0, 0))
-            screen.blit(text, (receipt_rect.x+100, receipt_rect.y + 100 + i * 18))
+
+            text = mono_font.render(line, True, (0, 0, 0))
+            screen.blit(text, (receipt_rect.x + 20, receipt_rect.y + 30 + i * 18))
 
     # change logic
     if return_change:
@@ -614,6 +621,11 @@ while running:
                     GRID_BUTTON_WIDTH, GRID_BUTTON_HEIGHT
                 )
                 pygame.draw.rect(screen, (0, 255, 0), btn_rect, 2)
+
+        if receipt_visible:
+            receipt_rect = pygame.Rect(0, 0, receipt_width-20, receipt_height-20)
+            receipt_rect.center = (sprite_rect.centerx - 450, sprite_rect.centery)
+            pygame.draw.rect(screen, (255, 0, 0), receipt_rect, 2)
 
     pygame.display.flip()
     clock.tick(60)
