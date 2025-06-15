@@ -69,10 +69,10 @@ CLONECASH_SCALE = 0.2
 CLONEITEM_SCALE = 2
 
 # ---------------------------- Layout Offsets ----------------------------
-NUMPAD_OFFSET = (500, -150)
+NUMPAD_OFFSET = (375, -175)
 GRID_OFFSET = (-90, -75)
 CARDREADER_OFFSET = (375, 50)
-CARD_OFFSET = (375, 250)
+CARD_OFFSET = (400, 250)
 CASH_MACHINE_OFFSET = (380, 150)
 cash_offsets = [(250, -200), (250, -100), (250, 0), (250, 100), (250, 200)]
 
@@ -179,6 +179,11 @@ for path in stock_address:
 
 numpad_anim_progress = 0.0  # 0 = hidden, 1 = fully shown
 NUMPAD_ANIM_DURATION = 1000  # in milliseconds
+
+cardreader_anim_progress = 0.0  # 0 = hidden, 1 = shown
+card_anim_progress = 0.0        # 0 = below screen, 1 = at slot
+CARDREADER_ANIM_DURATION = 1000
+CARD_ANIM_DURATION = 1000
 
 
 # ---------------------------- Game Loop ----------------------------
@@ -462,7 +467,7 @@ while running:
             pygame.draw.rect(screen, (0, 255, 0), inp_rect, 2)
 
     # Draw card reader image
-    if cardReader_visible:
+    if cardreader_anim_progress > 0:
 
         # show card reader image
         cardReader_img_src = pygame.image.load("picture/cash/card_reader.png").convert_alpha()
@@ -470,8 +475,10 @@ while running:
         ch = int(cardReader_img_src.get_height() * CARDREADER_SCALE)
         card_img = pygame.transform.smoothscale(cardReader_img_src, (cw, ch))
         card_rect = card_img.get_rect(
-            center=(sprite_rect.centerx + CARDREADER_OFFSET[0], sprite_rect.centery + CARDREADER_OFFSET[1])
+            center=(sprite_rect.centerx + CARDREADER_OFFSET[0] + cardreader_anim_x,
+                    sprite_rect.centery + CARDREADER_OFFSET[1])
         )
+
         screen.blit(card_img, card_rect)
 
         if DEBUG:
@@ -484,8 +491,9 @@ while running:
             card_img = pygame.transform.smoothscale(card_img_src, (cw, ch))
             card_img = pygame.transform.rotate(card_img, -90)
             card_rect = card_img.get_rect(
-                center=(sprite_rect.centerx + CARD_OFFSET[0], sprite_rect.centery + CARD_OFFSET[1])
+                center=(sprite_rect.centerx + CARD_OFFSET[0], card_anim_y)
             )
+
             screen.blit(card_img, card_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (0, 255, 0), card_rect, 2)
@@ -521,6 +529,8 @@ while running:
 
     screen.blit(sprite, sprite_rect)
 
+    # --------------------------------------   Animation --------------------------------------
+
     # Easing animation for numpad
     if numpad_visible and numpad_anim_progress < 1.0:
         numpad_anim_progress += dt / NUMPAD_ANIM_DURATION
@@ -533,6 +543,33 @@ while running:
 
     numpad_eased = ease_in_out_cubic(numpad_anim_progress)
     numpad_anim_x = -400 + 400 * numpad_eased
+
+    # Easing animation for card reader
+    if cardReader_visible and cardreader_anim_progress < 1.0:
+        cardreader_anim_progress += dt / CARDREADER_ANIM_DURATION
+        if cardreader_anim_progress > 1.0:
+            cardreader_anim_progress = 1.0
+    elif not cardReader_visible and cardreader_anim_progress > 0.0:
+        cardreader_anim_progress -= dt / CARDREADER_ANIM_DURATION
+        if cardreader_anim_progress < 0.0:
+            cardreader_anim_progress = 0.0
+
+    # Easing animation for card
+    if cardReader_visible and card_anim_progress < 1.0:
+        card_anim_progress += dt / CARD_ANIM_DURATION
+        if card_anim_progress > 1.0:
+            card_anim_progress = 1.0
+    elif not cardReader_visible and card_anim_progress > 0.0:
+        card_anim_progress -= dt / CARD_ANIM_DURATION
+        if card_anim_progress < 0.0:
+            card_anim_progress = 0.0
+
+    # Compute eased positions
+    cardreader_eased = ease_in_out_cubic(cardreader_anim_progress)
+    card_eased = ease_in_out_cubic(card_anim_progress)
+    cardreader_anim_x = -400 + 400 * cardreader_eased  # Slide from left
+    card_anim_y = window_height + 100 - (
+                window_height + 100 - (sprite_rect.centery + CARD_OFFSET[1])) * card_eased  # Slide up from bottom
 
     # Draw items
     for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
@@ -642,10 +679,10 @@ while running:
         elif message_timer == 0 and "Insert" not in banner_message:
             banner_message = ""
 
-    if card_message and cardReader_visible:
+    if card_message and cardreader_anim_progress == 1.0:
         msg_surf = input_font.render(card_message, True, (255, 255, 255))
         msg_rect = msg_surf.get_rect(
-            center=(sprite_rect.centerx + CARD_OFFSET[0]+5,
+            center=(sprite_rect.centerx + CARDREADER_OFFSET[0]+5,
                     sprite_rect.centery + CARD_OFFSET[1] -235))
         screen.blit(msg_surf, msg_rect)
 
