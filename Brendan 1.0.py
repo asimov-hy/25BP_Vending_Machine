@@ -10,52 +10,60 @@ pygame.init()
 DEBUG = 0
 click_pos = False
 
-# Display setup
+# ---------------------------- Display Setup ----------------------------
 info = pygame.display.Info()
 initial_width, initial_height = info.current_w, info.current_h
 screen = pygame.display.set_mode((initial_width, initial_height-60), pygame.RESIZABLE)
 pygame.display.set_caption("Brendan the Vending Machine")
 
+# ---------------------------- Fonts ----------------------------
+font = pygame.font.SysFont(None, 24)
+input_font = pygame.font.SysFont(None, 48)
+mono_font = pygame.font.SysFont("Courier New", 20)
+
 # ---------------------------- Clock & State ----------------------------
 clock = pygame.time.Clock()
 running = True
+
+# ---------------------------- Game State ----------------------------
 order_number = ""
 valid_order = 0
 payment_money = 0
 inserted_money = 0
+selected_item = None
+last_purchased_item = None
+purchase_time = ""
 
 numpad_visible = False
 cardReader_visible = False
 cash_machine_visible = False
 receipt_visible = False
+receipt_choice_visible = False
 
 return_change = False
+receipt_dismissing = False
+receipt_pending = False
+pending_receipt_data = None
+pending_payment_type = None
+change_due = 0
+
 cloned_items = []
 spawn_timer = 0
 SPAWN_DURATION = 20
 
-# ---------------------------- Fonts & Messages ----------------------------
-font = pygame.font.SysFont(None, 24)
-input_font = pygame.font.SysFont(None, 48)
-
-mono_font = pygame.font.SysFont("Courier New", 20)
-
-# message for item
+# ---------------------------- Messages ----------------------------
 MESSAGE_DURATION = 180
 message_timer = 0
 banner_message = ""
-
-# message for card reader - item price
 card_message = ""
-
-# message for debug
 debug_message = ""
 
-# ---------------------------- Selection State ----------------------------
-selected_item = None
-cloned_items = []   # (original item name, positionx, positiony)
-last_purchased_item = None
-purchase_time = ""
+# ---------------------------- Receipt Info ----------------------------
+receipt_width = 400
+receipt_height = 400
+receipt_payment = 0
+receipt_paid = 0
+receipt_change = 0
 
 # ---------------------------- Scaling Factors ----------------------------
 VM_SCALE = 0.54
@@ -76,33 +84,6 @@ CARD_OFFSET = (400, 250)
 CASH_MACHINE_OFFSET = (380, 150)
 cash_offsets = [(250, -200), (250, -100), (250, 0), (250, 100), (250, 200)]
 
-# ---------------------------- Button & Grid Config ----------------------------
-
-numpad_buttons = [
-    "1", "2", "3",
-    "4", "5", "6",
-    "7", "8", "9",
-    "C", "0", "E"
-]
-GRID_BUTTON_WIDTH =60  # wider button
-GRID_BUTTON_HEIGHT = 53
-GRID_PADDING_X = 5
-GRID_PADDING_Y = 8
-# CLEAR_BUTTON_SIZE = (60, 30)
-# ENTER_BUTTON_SIZE = (60, 30)
-# CLEAR_BUTTON_OFFSET = (0, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
-# ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
-
-
-
-
-receipt_width = 400
-receipt_height = 400
-
-receipt_payment = 0
-receipt_paid = 0
-receipt_change = 0
-
 # ---------------------------- UI Buttons ----------------------------
 ui_buttons = {
     "numpad": ((161, -120), (1.5, 2.0)),
@@ -117,6 +98,18 @@ ui_colors = {
     "dispenser": (255, 255, 200)
 }
 
+# ---------------------------- Button Config ----------------------------
+numpad_buttons = [
+    "1", "2", "3",
+    "4", "5", "6",
+    "7", "8", "9",
+    "C", "0", "E"
+]
+GRID_BUTTON_WIDTH = 60
+GRID_BUTTON_HEIGHT = 53
+GRID_PADDING_X = 5
+GRID_PADDING_Y = 8
+
 # ---------------------------- Asset Loading ----------------------------
 original_sprite = pygame.image.load("vm_sprite.png").convert_alpha()
 scaled_width = int(original_sprite.get_width() * VM_SCALE)
@@ -129,24 +122,13 @@ card_image_src = pygame.image.load("picture/cash/card.png").convert_alpha()
 
 receipt_choice_scale = 0.6
 original_receipt_choice_img = pygame.image.load("picture/cash/receiptYN.png").convert_alpha()
-
-# Get original size
 orig_width = original_receipt_choice_img.get_width()
 orig_height = original_receipt_choice_img.get_height()
-
-# Scale based on factor
 scaled_width = int(orig_width * receipt_choice_scale)
 scaled_height = int(orig_height * receipt_choice_scale)
-
-# Apply transform
 receipt_choice_img = pygame.transform.scale(original_receipt_choice_img, (scaled_width, scaled_height))
 
-receipt_choice_visible = False
-
-
-
-
-# ---------------------------- Stock Items ----------------------------
+# ---------------------------- Stock Data ----------------------------
 stock_address = [
     "picture/stock/chips.png",
     "picture/stock/coffee.png",
@@ -190,7 +172,7 @@ coin_images = [
     "picture/cash/cash_100.png"
 ]
 
-
+# ---------------------------- Stock Layout ----------------------------
 row_offsets = [-205, -124, -45]
 col_offsets = [-151, -76, -4, 66]
 item_offsets = [(x, y) for y in row_offsets for x in col_offsets]
@@ -202,29 +184,22 @@ for path in stock_address:
     item_surfaces.append(img)
 
 # ---------------------------- Animation Variables ----------------------------
+numpad_anim_progress = 0.0
+NUMPAD_ANIM_DURATION = 1000
 
-numpad_anim_progress = 0.0  # 0 = hidden, 1 = fully shown
-NUMPAD_ANIM_DURATION = 1000  # in milliseconds
-
-cardreader_anim_progress = 0.0  # 0 = hidden, 1 = shown
-card_anim_progress = 0.0        # 0 = below screen, 1 = at slot
+cardreader_anim_progress = 0.0
+card_anim_progress = 0.0
 CARDREADER_ANIM_DURATION = 1000
 CARD_ANIM_DURATION = 1000
 
-cashmachine_anim_progress = 0.0  # 0 = hidden, 1 = visible
-cashimages_anim_progress = 0.0   # for bills appearing
+cashmachine_anim_progress = 0.0
+cashimages_anim_progress = 0.0
 CASHMACHINE_ANIM_DURATION = 1000
 CASHIMAGES_ANIM_DURATION = 1000
 
 receipt_anim_progress = 0.0
 RECEIPT_ANIM_DURATION = 1000
 
-receipt_dismissing = False
-
-receipt_pending = False
-pending_receipt_data = None
-pending_payment_type = None
-change_due = 0
 
 
 # ---------------------------- Game Loop ----------------------------
@@ -517,7 +492,7 @@ while running:
                     }
 
             # -------------------- receipt handling --------------------
-            receipt_choice_visible = True
+
             if receipt_choice_visible:
                 banner_message = "Print receipt?"
                 message_timer = MESSAGE_DURATION

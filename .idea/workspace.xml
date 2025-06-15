@@ -5,28 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cb358536-c5c9-45ed-aeb7-c46fec427bff" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/picture/cash/receiptYN.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Brendan 1.0.py" beforeDir="false" afterPath="$PROJECT_DIR$/Brendan 1.0.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/chips.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/chips.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/coffee.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/coffee.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/cola_bottle.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/cola_bottle.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/cola_can.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/cola_can.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/juice.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/juice.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/lemonade.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/lemonade.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/mystery_box.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/mystery_box.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/mystery_potion.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/mystery_potion.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/nuke.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/nuke.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/orange_juice.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/orange_juice.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/pokeball.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/pokeball.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/small_doll.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/small_doll.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/sold_out.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/sold_out.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/sport.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/sport.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/sprite_pet.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/sprite_pet.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/strawberry.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/strawberry.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/sword.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/sword.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/water.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/water.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/yogrut.png" beforeDir="false" afterPath="$PROJECT_DIR$/picture/stock/yogrut.png" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
