@@ -2,6 +2,7 @@ import pygame
 import sys
 import random
 import datetime
+
 # ---------------------------- Initialization ----------------------------
 pygame.init()
 
@@ -31,7 +32,7 @@ receipt_visible = False
 return_change = False
 cloned_items = []
 spawn_timer = 0
-SPAWN_DURATION = 30
+SPAWN_DURATION = 20
 
 # ---------------------------- Fonts & Messages ----------------------------
 font = pygame.font.SysFont(None, 24)
@@ -124,7 +125,7 @@ numpad_image = pygame.image.load("picture/cash/numpad.png").convert_alpha()
 card_image_src = pygame.image.load("picture/cash/card.png").convert_alpha()
 
 # ---------------------------- Stock Items ----------------------------
-stock_list = [
+stock_address = [
     "picture/chips.png",
     "picture/coffee.png",
     "picture/cola_can.png",
@@ -140,20 +141,20 @@ stock_list = [
     "picture/sold_out.png"
 ]
 
-item_names = [
-    "Crisps - $3500",
-    "Coffee - $1500",
-    "Cola Can - $1200",
-    "Lemonade - $1300",
-    "Orange Juice - $1500",
-    "Cola Bottle - $2200",
-    "Sword - $13000",
-    "Mystery Potion - $30000",
-    "Nuke - $100000",
-    "Pokeball - $5000",
-    "Mystery Box - $1000",
-    "Small Doll - $50000",
-    "Sold Out"
+stock_data = [
+    {"name": "Crisps", "price": 3500, "stock": 5},
+    {"name": "Coffee", "price": 1500, "stock": 5},
+    {"name": "Cola Can", "price": 1200, "stock": 5},
+    {"name": "Lemonade", "price": 1300, "stock": 5},
+    {"name": "Orange Juice", "price": 1500, "stock": 5},
+    {"name": "Cola Bottle", "price": 2200, "stock": 5},
+    {"name": "Sword", "price": 13000, "stock": 2},
+    {"name": "Mystery Potion", "price": 30000, "stock": 1},
+    {"name": "Nuke", "price": 100000, "stock": 1},
+    {"name": "Pokeball", "price": 5000, "stock": 3},
+    {"name": "Mystery Box", "price": 1000, "stock": 4},
+    {"name": "Small Doll", "price": 50000, "stock": 2},
+    {"name": "Sold Out", "price": 0, "stock": 0}
 ]
 
 cash_images = [
@@ -170,77 +171,34 @@ item_offsets = [(x, y) for y in row_offsets for x in col_offsets]
 BOX_SIZE = int(68 * ITEM_SCALE)
 
 item_surfaces = []
-for path in stock_list:
+for path in stock_address:
     img = pygame.image.load(path).convert_alpha()
     item_surfaces.append(img)
 
-# ---------------------------- Stock Management (추가/재고 관리 전용) ----------------------------
-# 상품별 최대 20개까지 재고 관리
-item_stocks = [1] * 12  # 12개 상품, 각 20개씩 초기화
+# ---------------------------- Game Loop ----------------------------
 
-# 재고 확인 함수
-def check_stock(item_idx):
-    """해당 상품의 재고가 있는지 확인"""
-    return item_stocks[item_idx] > 0
-
-# 재고 차감 함수
-def decrease_stock(item_idx):
-    """결제 성공 시 재고 차감"""
-    if item_stocks[item_idx] > 0:
-        item_stocks[item_idx] -= 1
-
-# 재고 복구 함수
-def increase_stock(item_idx):
-    """환불/결제 취소 시 재고 복구"""
-    item_stocks[item_idx] += 1
-
-# 결제 처리 함수 (현금)
-def process_cash_payment(selected_item, inserted_cash, calc_and_set_change):
-    """현금 결제 처리 및 재고/거스름돈/메시지 반환"""
-    if selected_item is None:
-        return False, inserted_cash, "상품을 선택하세요"
-    price = int(item_names[selected_item].split('-')[1].replace('$', '').replace(',', '').strip())
-    if not check_stock(selected_item):
-        return False, inserted_cash, "상품이 소진되었습니다"
-    if inserted_cash < price:
-        return False, inserted_cash, "잔액이 부족합니다"
-    decrease_stock(selected_item)
-    change = inserted_cash - price
-    calc_and_set_change(change)
-    return True, 0, "현금 결제 완료"
-
-# 결제 처리 함수 (카드)
-def process_card_payment(selected_item):
-    """카드 결제 처리 및 재고/메시지 반환"""
-    if selected_item is None:
-        return False, "상품을 선택하세요"
-    if not check_stock(selected_item):
-        return False, "상품이 소진되었습니다"
-    decrease_stock(selected_item)
-    return True, "카드 결제 완료"
-
-# 재고 수량 표시 함수
 def draw_stock_counts(screen, sprite_rect, font):
     for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
-        stock = item_stocks[idx]
-        stock_txt = font.render(f"{stock}", True, (255, 255, 0) if stock > 0 else (255, 80, 80))
-        pos = (sprite_rect.centerx + x_off - 24, sprite_rect.centery + y_off + BOX_SIZE//2 - 18)
-        screen.blit(stock_txt, pos)
+        stock = stock_data[idx]["stock"]
+        if stock > 0:
+            color = (255, 255, 0)
+            stock_txt = font.render(f"{stock}", True, color)
+            pos = (sprite_rect.centerx + x_off - 24, sprite_rect.centery + y_off + BOX_SIZE//2 - 18)
+            screen.blit(stock_txt, pos)
+        else:
+            sold_out_img = item_surfaces[-1]
+            iw, ih = sold_out_img.get_size()
+            scaled_img = pygame.transform.smoothscale(sold_out_img, (int(iw * 0.15), int(ih * 0.15)))
+            img_rect = scaled_img.get_rect(center=(sprite_rect.centerx + x_off, sprite_rect.centery + y_off))
+            screen.blit(scaled_img, img_rect)
 
-# 아이템이 소진되면 sold_out 이미지로 대체하는 함수
-def get_item_surface(idx, item_surfaces, sold_out_surface):
-    if item_stocks[idx] == 0:
-        return sold_out_surface
-    return item_surfaces[idx]
-# ---------------------------- (추가/재고 관리 전용 끝) ----------------------------
-
-# ---------------------------- Game Loop ----------------------------
 
 def payment_success():
     global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message, receipt_visible, last_purchased_item, purchase_time
     banner_message = "Payment complete"
     receipt_visible = True
     if selected_item is not None:
+        stock_data[selected_item]["stock"] -= 1
         dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
         dispenser_y = sprite_rect.centery + ui_buttons["dispenser"][0][1]
         rand_x = dispenser_x + random.randint(-150, 150)
@@ -333,10 +291,10 @@ while running:
                 if rect.collidepoint(mouse_x, mouse_y):
                     selected_item = idx
                     valid_order = 0  # Reset until confirmed by numpad
-                    banner_message = f"{idx + 1}: {item_names[idx]}"
+                    banner_message = f"{idx + 1}: {stock_data[idx]['name']} - ${stock_data[idx]['price']}"
                     message_timer = MESSAGE_DURATION
 
-                    debug_message = "Item Selected: " + item_names[idx]
+                    debug_message = f"Item Selected: {stock_data[idx]['name']}"
 
             # ---------------- Numpad Input Handling ----------------
             if numpad_visible:
@@ -358,15 +316,15 @@ while running:
                             message_timer = 0
                             valid_order = 0
                         elif label == "E":
-                            if order_number.isdigit() and 1 <= int(order_number) <= 12:
+                            if order_number.isdigit() and 1 <= int(order_number) <= 12 and stock_data[int(order_number) - 1]['stock'] > 0:
                                 valid_order = int(order_number)
                                 selected_item = valid_order - 1
-                                payment_money = int(item_names[valid_order - 1].split('$')[-1].replace(',', ''))
+                                payment_money = stock_data[valid_order - 1]['price']
                                 banner_message = f"Insert: ${payment_money - inserted_money}"
                                 debug_message = f"Order: {order_number}, Pay: ${payment_money}"
                                 message_timer = -1
                             else:
-                                banner_message = "No such item"
+                                banner_message = "No item stocked"
                                 message_timer = MESSAGE_DURATION
                                 valid_order = 0
                             order_number = ""
@@ -396,16 +354,8 @@ while running:
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     if valid_order != 0:
-                        # ---------------------------- stock_management: 카드 결제 시 재고 차감 및 soldout 처리 ----------------------------
-                        success, msg = process_card_payment(selected_item)
-                        if success:
-                            receipt_paid = payment_money
-                            payment_success()
-                        else:
-                            banner_message = msg
-                            message_timer = MESSAGE_DURATION
-                            valid_order = 0
-                        # ---------------------------- (stock_management: 카드 결제 처리 끝) ----------------------------
+                        receipt_paid = payment_money
+                        payment_success()
                     else:
                         banner_message = "No valid order"
                         message_timer = MESSAGE_DURATION
@@ -440,28 +390,16 @@ while running:
                             inserted_money += 100
 
                         if valid_order != 0:
-                            price_str = item_names[valid_order - 1].split('$')[-1].replace(',', '')
-                            payment_money = int(price_str)
+                            payment_money = stock_data[valid_order - 1]['price']
                             banner_message = f"Inserted: ${inserted_money}/${payment_money}"
                             message_timer = MESSAGE_DURATION
 
                             if inserted_money >= payment_money:
-                                # ---------------------------- stock_management: 현금 결제 시 재고 차감 및 soldout 처리 ----------------------------
-                                def _set_change(change):
-                                    global receipt_change
-                                    receipt_change = change
-                                success, _, msg = process_cash_payment(selected_item, inserted_money + payment_money, _set_change)
-                                if success:
-                                    inserted_money -= payment_money
-                                    receipt_paid = payment_money + inserted_money
-                                    # receipt_change는 _set_change에서 처리됨
-                                    payment_success()
-                                    return_change = True
-                                else:
-                                    banner_message = msg
-                                    message_timer = MESSAGE_DURATION
-                                    valid_order = 0
-                                # ---------------------------- (stock_management: 현금 결제 처리 끝) ----------------------------
+                                inserted_money -= payment_money
+                                receipt_paid = payment_money + inserted_money
+                                receipt_change = inserted_money
+                                payment_success()
+                                return_change = True
 
 
                         else:
@@ -501,12 +439,8 @@ while running:
         img_s = pygame.transform.smoothscale(img, (int(iw * sf), int(ih * sf)))
         b_r = img_s.get_rect(center=(sprite_rect.centerx + x_off, sprite_rect.centery + y_off))
         screen.blit(img_s, b_r)
+        draw_stock_counts(screen, sprite_rect, font)
         if DEBUG: pygame.draw.rect(screen, (255, 100, 100), b_r.inflate(0, 0), 2)
-
-    # ---------------------------- stock_management: 실시간 재고 표시 ----------------------------
-    # (이 코드는 stock_management.py에서 가져온 것으로, 재고 표시 기능을 구현합니다)
-    draw_stock_counts(screen, sprite_rect, font)
-    # ---------------------------- (stock_management: 실시간 재고 표시 끝) ----------------------------
 
     # Draw numpad
     if numpad_visible:
@@ -622,7 +556,7 @@ while running:
             f"  {purchase_time}",
             "  --------------------------",
             "  ITEM           PRICE",
-            f"  {item_names[last_purchased_item].split(' - ')[0]:<14} $ {payment_money:,}",
+            f"  {stock_data[last_purchased_item]['name']:<14} $ {payment_money:,}"
             "",
             "  --------------------------",
             f"  TOTAL          $ {payment_money:,}",
