@@ -481,9 +481,13 @@ while running:
             for idx, cloned in enumerate(cloned_items):
                 img_rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE)
                 img_rect.center = cloned["pos"]
-                if img_rect.collidepoint(mouse_x, mouse_y):
+                if img_rect.collidepoint(mouse_x, mouse_y) and "anim" not in cloned:
                     debug_message = f"Cloned Item {idx} clicked"
-                    cloned_items.pop(idx)
+                    cloned["anim"] = {
+                        "vy": -8,  # initial upward velocity
+                        "gravity": 0.6,  # acceleration downward
+                        "life": 0  # counts frames
+                    }
 
             # -------------------- receipt handling --------------------
             # destroy receipt if clicked
@@ -715,6 +719,18 @@ while running:
             screen.blit(img_s, b_r)
             if DEBUG:
                 pygame.draw.rect(screen, (200, 0, 200), b_r.inflate(0, 0), 2)
+
+    for cloned in cloned_items[:]:  # loop over a copy to allow safe removal
+        if "anim" in cloned:
+            cloned["anim"]["vy"] += cloned["anim"]["gravity"]
+            x, y = cloned["pos"]
+            y += cloned["anim"]["vy"]
+            cloned["pos"] = (x, y)
+            cloned["anim"]["life"] += 1
+
+            # Remove if out of screen
+            if y > window_height + 100:
+                cloned_items.remove(cloned)
 
     # draw receipt
     if receipt_anim_progress > 0:
