@@ -94,6 +94,8 @@ GRID_PADDING_Y = 8
 # ENTER_BUTTON_OFFSET = (CLEAR_BUTTON_SIZE[0] + GRID_PADDING_X + 10, GRID_BUTTON_SIZE * 3 + GRID_PADDING_Y + 17)
 
 
+
+
 receipt_width = 400
 receipt_height = 400
 
@@ -125,21 +127,40 @@ bg_color = sprite.get_at((0, 0))
 numpad_image = pygame.image.load("picture/cash/numpad.png").convert_alpha()
 card_image_src = pygame.image.load("picture/cash/card.png").convert_alpha()
 
+receipt_choice_scale = 0.6
+original_receipt_choice_img = pygame.image.load("picture/cash/receiptYN.png").convert_alpha()
+
+# Get original size
+orig_width = original_receipt_choice_img.get_width()
+orig_height = original_receipt_choice_img.get_height()
+
+# Scale based on factor
+scaled_width = int(orig_width * receipt_choice_scale)
+scaled_height = int(orig_height * receipt_choice_scale)
+
+# Apply transform
+receipt_choice_img = pygame.transform.scale(original_receipt_choice_img, (scaled_width, scaled_height))
+
+receipt_choice_visible = False
+
+
+
+
 # ---------------------------- Stock Items ----------------------------
 stock_address = [
-    "picture/chips.png",
-    "picture/coffee.png",
-    "picture/cola_can.png",
-    "picture/lemonade.png",
-    "picture/orange_juice.png",
-    "picture/cola_bottle.png",
-    "picture/sword.png",
-    "picture/mystery_potion.png",
-    "picture/nuke.png",
-    "picture/pokeball.png",
-    "picture/mystery_box.png",
-    "picture/small_doll.png",
-    "picture/sold_out.png"
+    "picture/stock/chips.png",
+    "picture/stock/coffee.png",
+    "picture/stock/cola_can.png",
+    "picture/stock/lemonade.png",
+    "picture/stock/orange_juice.png",
+    "picture/stock/cola_bottle.png",
+    "picture/stock/sword.png",
+    "picture/stock/mystery_potion.png",
+    "picture/stock/nuke.png",
+    "picture/stock/pokeball.png",
+    "picture/stock/mystery_box.png",
+    "picture/stock/small_doll.png",
+    "picture/stock/sold_out.png"
 ]
 
 stock_data = [
@@ -206,7 +227,6 @@ pending_payment_type = None
 change_due = 0
 
 
-
 # ---------------------------- Game Loop ----------------------------
 
 def ease_in_out_cubic(t):
@@ -259,7 +279,6 @@ def payment_success(payment):
         inserted_money = 0
         return_change = True
 
-
     else:   # error payment or fraud
             receipt_payment = 0
             receipt_paid = 0
@@ -267,8 +286,11 @@ def payment_success(payment):
 
 
     banner_message = "Payment complete"
-    if payment == "card":
+    if receipt_choice_visible:
         receipt_visible = True
+    else:
+        receipt_visible = False
+
     if selected_item is not None:
         stock_data[selected_item]["stock"] -= 1
         dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
@@ -430,8 +452,10 @@ while running:
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     if valid_order != 0:
+                        # choice for receipt or no receipt
 
-                        payment_success("card")
+                        receipt_choice_visible = True
+
                     else:
                         banner_message = "No valid order"
                         message_timer = MESSAGE_DURATION
@@ -493,6 +517,40 @@ while running:
                     }
 
             # -------------------- receipt handling --------------------
+            receipt_choice_visible = True
+            if receipt_choice_visible:
+                banner_message = "Print receipt?"
+                message_timer = MESSAGE_DURATION
+
+                # Define rect for drawing and click handling
+                receipt_choice_rect = receipt_choice_img.get_rect(
+                    center=(sprite_rect.centerx, sprite_rect.centery - 400))
+                receipt_yes_rect = pygame.Rect(receipt_choice_rect.left + 25,
+                                               receipt_choice_rect.top + receipt_choice_rect.height // 4,
+                                               receipt_choice_rect.width // 4 + 30,
+                                               receipt_choice_rect.height // 2
+                                               )
+                receipt_no_rect = pygame.Rect(receipt_choice_rect.left + receipt_choice_rect.width // 2 + 10,
+                                              receipt_choice_rect.top + receipt_choice_rect.height // 4,
+                                              receipt_choice_rect.width // 4 + 30,
+                                              receipt_choice_rect.height // 2
+                                              )
+
+                if DEBUG:
+                    pygame.draw.rect(screen, (255, 255, 255), receipt_choice_rect, 2)
+                    pygame.draw.rect(screen, (0, 255, 0), receipt_yes_rect, 2)
+                    pygame.draw.rect(screen, (255, 0, 0), receipt_no_rect, 2)
+
+                if receipt_yes_rect.collidepoint(mouse_x, mouse_y):
+                    payment_success("card")
+                    receipt_choice_visible = False
+                    banner_message = ""
+                elif receipt_no_rect.collidepoint(mouse_x, mouse_y):
+                    receipt_choice_visible = False
+                    payment_success("card")
+                    receipt_visible = False
+                    banner_message = ""
+
             # destroy receipt if clicked
             if receipt_visible:
                 receipt_rect = pygame.Rect(0, 0, receipt_width, receipt_height)
@@ -662,6 +720,13 @@ while running:
     cashmachine_anim_x = -400 + 400 * cashmachine_eased  # from left
     cashimages_anim_x = window_width + 200 - (window_width + 200 - 0) * cashimages_eased  # from right
 
+    if receipt_choice_visible:
+        screen.blit(receipt_choice_img, receipt_choice_rect)
+
+        if DEBUG:
+            pygame.draw.rect(screen, (0, 255, 0), receipt_yes_rect, 2)  # YES
+            pygame.draw.rect(screen, (255, 0, 0), receipt_no_rect, 2)  # NO
+
     # Easing animation for receipt
     # Receipt animation logic
     if receipt_visible and not receipt_dismissing:
@@ -807,6 +872,11 @@ while running:
         if message_timer > 0:
             message_timer -= 1
         elif message_timer == 0 and "Insert" not in banner_message:
+            if receipt_choice_visible:
+                receipt_choice_visible = False
+                payment_success("card")
+                receipt_visible = False
+
             banner_message = ""
 
     if card_message and cardreader_anim_progress == 1.0:
