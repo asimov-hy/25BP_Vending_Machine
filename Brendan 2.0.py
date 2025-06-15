@@ -97,6 +97,7 @@ GRID_PADDING_Y = 8
 receipt_width = 400
 receipt_height = 400
 
+receipt_payment = 0
 receipt_paid = 0
 receipt_change = 0
 
@@ -185,6 +186,20 @@ card_anim_progress = 0.0        # 0 = below screen, 1 = at slot
 CARDREADER_ANIM_DURATION = 1000
 CARD_ANIM_DURATION = 1000
 
+cashmachine_anim_progress = 0.0  # 0 = hidden, 1 = visible
+cashimages_anim_progress = 0.0   # for bills appearing
+CASHMACHINE_ANIM_DURATION = 1000
+CASHIMAGES_ANIM_DURATION = 1000
+
+receipt_anim_progress = 0.0
+RECEIPT_ANIM_DURATION = 1000
+
+receipt_dismissing = False
+
+receipt_pending = False
+pending_receipt_data = None
+pending_payment_type = None
+
 
 # ---------------------------- Game Loop ----------------------------
 
@@ -211,8 +226,35 @@ def draw_stock_counts(screen, sprite_rect, font):
             screen.blit(scaled_img, img_rect)
 
 
-def payment_success():
-    global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message, receipt_visible, last_purchased_item, purchase_time, receipt_paid, receipt_change, cardReader_visible, cash_machine_visible
+def payment_success(payment):
+    global banner_message, cloned_items, selected_item, valid_order, message_timer
+    global card_message, receipt_visible, last_purchased_item, purchase_time
+    global receipt_paid, receipt_change, cardReader_visible, cash_machine_visible
+    global receipt_dismissing, receipt_pending, receipt_payment, inserted_money
+    global receipt_anim_progress, receipt_visible, pending_payment_type
+
+    # If a receipt is still visible or animating, dismiss it first
+    if receipt_visible or receipt_anim_progress > 0:
+        receipt_dismissing = True
+        receipt_pending = True
+        pending_payment_type = payment
+        return  # wait until old one is gone before creating new
+    # else, continue with new receipt logic
+
+    if payment == "card":
+        receipt_payment = payment_money
+        receipt_paid = payment_money
+        receipt_change = 0
+    elif payment == "cash":
+        receipt_payment = payment_money
+        receipt_paid = payment_money + inserted_money
+        receipt_change = inserted_money
+    else:   # error payment or fraud
+        receipt_payment = 0
+        receipt_paid = 0
+        receipt_change = 0
+
+
     banner_message = "Payment complete"
     receipt_visible = True
     if selected_item is not None:
@@ -234,9 +276,9 @@ def payment_success():
 
     message_timer = MESSAGE_DURATION
     card_message = "..."
-
     cardReader_visible = False
     cash_machine_visible = False
+
 
 while running:
     dt = clock.tick(60)
@@ -376,8 +418,8 @@ while running:
                 if card_click_rect.collidepoint(mouse_x, mouse_y):
                     print("card clicked")
                     if valid_order != 0:
-                        receipt_paid = payment_money
-                        payment_success()
+
+                        payment_success("card")
                     else:
                         banner_message = "No valid order"
                         message_timer = MESSAGE_DURATION
@@ -417,10 +459,8 @@ while running:
                             message_timer = MESSAGE_DURATION
 
                             if inserted_money >= payment_money:
-                                inserted_money -= payment_money
-                                receipt_paid = payment_money + inserted_money
-                                receipt_change = inserted_money
-                                payment_success()
+
+                                payment_success("cash")
                                 return_change = True
 
 
@@ -446,7 +486,8 @@ while running:
 
                 if receipt_rect.collidepoint(mouse_x, mouse_y):
                     debug_message = "Receipt clicked"
-                    receipt_visible = False
+
+                    receipt_dismissing = True
 
 
     # --------------------------------------------Draw --------------------------------------------
@@ -502,13 +543,15 @@ while running:
                 pygame.draw.rect(screen, (0, 255, 0), card_rect, 2)
 
     # Draw cash machine:
-    if cash_machine_visible:
+    if cashmachine_anim_progress > 0:
+
         cash_machine_img_src = pygame.image.load("picture/cash/cash_machine.png").convert_alpha()
         cm_w = int(cash_machine_img_src.get_width() * CASH_MACHINE_SCALE)
         cm_h = int(cash_machine_img_src.get_height() * CASH_MACHINE_SCALE)
         cash_machine_img = pygame.transform.smoothscale(cash_machine_img_src, (cm_w, cm_h))
         cash_machine_rect = cash_machine_img.get_rect(
-            center=(sprite_rect.centerx + CASH_MACHINE_OFFSET[0], sprite_rect.centery + CASH_MACHINE_OFFSET[1])
+            center=(sprite_rect.centerx + CASH_MACHINE_OFFSET[0] + cashmachine_anim_x,
+                    sprite_rect.centery + CASH_MACHINE_OFFSET[1])
         )
         screen.blit(cash_machine_img, cash_machine_rect)
 
@@ -521,8 +564,13 @@ while running:
             cash_w = int(cash_img_src.get_width() * CASH_SCALE)
             cash_h = int(cash_img_src.get_height() * CASH_SCALE)
             cash_img = pygame.transform.smoothscale(cash_img_src, (cash_w, cash_h))
+            final_cash_x = sprite_rect.centerx + CASH_MACHINE_OFFSET[0] + cash_offsets[i][0]
+
+            # Animate from right to that final position
+            start_x = window_width + 200  # offscreen right
+            animated_x = start_x + (final_cash_x - start_x) * cashimages_eased
             cash_rect = cash_img.get_rect(
-                center=(sprite_rect.centerx + CASH_MACHINE_OFFSET[0] + cash_offsets[i][0],
+                center=(animated_x,
                         sprite_rect.centery + CASH_MACHINE_OFFSET[1] + cash_offsets[i][1])
             )
             screen.blit(cash_img, cash_rect)
@@ -574,6 +622,59 @@ while running:
     card_anim_y = window_height + 100 - (
                 window_height + 100 - (sprite_rect.centery + CARD_OFFSET[1])) * card_eased  # Slide up from bottom
 
+    # Easing animation for cash machine
+    if cash_machine_visible and cashmachine_anim_progress < 1.0:
+        cashmachine_anim_progress += dt / CASHMACHINE_ANIM_DURATION
+        if cashmachine_anim_progress > 1.0:
+            cashmachine_anim_progress = 1.0
+    elif not cash_machine_visible and cashmachine_anim_progress > 0.0:
+        cashmachine_anim_progress -= dt / CASHMACHINE_ANIM_DURATION
+        if cashmachine_anim_progress < 0.0:
+            cashmachine_anim_progress = 0.0
+
+    # Easing animation for cash images
+    if cash_machine_visible and cashimages_anim_progress < 1.0:
+        cashimages_anim_progress += dt / CASHIMAGES_ANIM_DURATION
+        if cashimages_anim_progress > 1.0:
+            cashimages_anim_progress = 1.0
+    elif not cash_machine_visible and cashimages_anim_progress > 0.0:
+        cashimages_anim_progress -= dt / CASHIMAGES_ANIM_DURATION
+        if cashimages_anim_progress < 0.0:
+            cashimages_anim_progress = 0.0
+
+    # Compute eased positions
+    cashmachine_eased = ease_in_out_cubic(cashmachine_anim_progress)
+    cashimages_eased = ease_in_out_cubic(cashimages_anim_progress)
+    cashmachine_anim_x = -400 + 400 * cashmachine_eased  # from left
+    cashimages_anim_x = window_width + 200 - (window_width + 200 - 0) * cashimages_eased  # from right
+
+    # Easing animation for receipt
+    # Receipt animation logic
+    if receipt_visible and not receipt_dismissing:
+        if receipt_anim_progress < 1.0:
+            receipt_anim_progress += dt / RECEIPT_ANIM_DURATION
+            if receipt_anim_progress > 1.0:
+                receipt_anim_progress = 1.0
+
+    elif receipt_dismissing:
+        if receipt_anim_progress > 0.0:
+            receipt_anim_progress -= dt / RECEIPT_ANIM_DURATION
+            if receipt_anim_progress < 0.0:
+                receipt_anim_progress = 0.0
+        if receipt_anim_progress == 0.0:
+            receipt_dismissing = False
+            receipt_visible = False
+
+            if receipt_pending:
+                receipt_pending = False
+                payment_success(pending_payment_type)
+                pending_payment_type = None
+
+    receipt_eased = ease_in_out_cubic(receipt_anim_progress)
+
+    # From above window (-receipt_height) to center (normal position), then slide down if dismissed
+    receipt_anim_y = -receipt_height + (sprite_rect.centery - (-receipt_height)) * receipt_eased
+
     # Draw items
     for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
         img = item_surfaces[idx]
@@ -609,10 +710,11 @@ while running:
                 pygame.draw.rect(screen, (200, 0, 200), b_r.inflate(0, 0), 2)
 
     # draw receipt
-    if receipt_visible:
+    if receipt_anim_progress > 0:
+
 
         receipt_rect = pygame.Rect(0, 0, receipt_width, receipt_height)
-        receipt_rect.center = (sprite_rect.centerx-450, sprite_rect.centery)
+        receipt_rect.center = (sprite_rect.centerx - 450, receipt_anim_y)
 
         # Draw receipt background image
         receipt_bg_img = pygame.image.load("picture/cash/receipt_bg.png").convert_alpha()
@@ -628,10 +730,10 @@ while running:
             f"  {purchase_time}",
             "  --------------------------",
             "  ITEM           PRICE",
-            f"  {stock_data[last_purchased_item]['name']:<14} $ {payment_money:,}"
+            f"  {stock_data[last_purchased_item]['name']:<14} $ {receipt_payment:,}"
             "",
             "  --------------------------",
-            f"  TOTAL          $ {payment_money:,}",
+            f"  TOTAL          $ {receipt_payment:,}",
             f"  PAID           $ {receipt_paid:,}",
             f"  CHANGE         $ {receipt_change:,}",
             "",
