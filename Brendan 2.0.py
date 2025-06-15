@@ -175,7 +175,20 @@ for path in stock_address:
     img = pygame.image.load(path).convert_alpha()
     item_surfaces.append(img)
 
+# ---------------------------- Animation Variables ----------------------------
+
+numpad_anim_progress = 0.0  # 0 = hidden, 1 = fully shown
+NUMPAD_ANIM_DURATION = 1000  # in milliseconds
+
+
 # ---------------------------- Game Loop ----------------------------
+
+def ease_in_out_cubic(t):
+    if t < 0.5:
+        return 4 * t * t * t
+    else:
+        return 1 - pow(-2 * t + 2, 3) / 2
+
 
 def draw_stock_counts(screen, sprite_rect, font):
     for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
@@ -218,6 +231,7 @@ def payment_success():
     card_message = "..."
 
 while running:
+    dt = clock.tick(60)
     # create vending machine sprite rect
     window_width, window_height = screen.get_size()
     sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2))
@@ -429,26 +443,16 @@ while running:
 
     # --------------------------------------------Draw --------------------------------------------
     screen.fill(bg_color)
-    screen.blit(sprite, sprite_rect)
-
-    # Draw items
-    for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
-        img = item_surfaces[idx]
-        iw, ih = img.get_size()
-        sf = min(BOX_SIZE / iw, BOX_SIZE / ih)
-        img_s = pygame.transform.smoothscale(img, (int(iw * sf), int(ih * sf)))
-        b_r = img_s.get_rect(center=(sprite_rect.centerx + x_off, sprite_rect.centery + y_off))
-        screen.blit(img_s, b_r)
-        draw_stock_counts(screen, sprite_rect, font)
-        if DEBUG: pygame.draw.rect(screen, (255, 100, 100), b_r.inflate(0, 0), 2)
 
     # Draw numpad
-    if numpad_visible:
+    if numpad_anim_progress > 0:
+
 
         nw, nh = int(numpad_image.get_width() * NUMPAD_SCALE), int(numpad_image.get_height() * NUMPAD_SCALE)
         np_img = pygame.transform.smoothscale(numpad_image, (nw, nh))
         np_rect = np_img.get_rect(
-            center=(sprite_rect.centerx + NUMPAD_OFFSET[0], sprite_rect.centery + NUMPAD_OFFSET[1]))
+            center=(sprite_rect.centerx + NUMPAD_OFFSET[0] + numpad_anim_x, sprite_rect.centery + NUMPAD_OFFSET[1])
+        )
         screen.blit(np_img, np_rect)
         inp = input_font.render(order_number, True, (255, 255, 255))
         inp_rect = inp.get_rect(topright=(np_rect.right - 30, np_rect.top + 28))
@@ -513,6 +517,34 @@ while running:
             screen.blit(cash_img, cash_rect)
             if DEBUG:
                 pygame.draw.rect(screen, (255, 255, 0), cash_rect, 2)
+
+
+    screen.blit(sprite, sprite_rect)
+
+    # Easing animation for numpad
+    if numpad_visible and numpad_anim_progress < 1.0:
+        numpad_anim_progress += dt / NUMPAD_ANIM_DURATION
+        if numpad_anim_progress > 1.0:
+            numpad_anim_progress = 1.0
+    elif not numpad_visible and numpad_anim_progress > 0.0:
+        numpad_anim_progress -= dt / NUMPAD_ANIM_DURATION
+        if numpad_anim_progress < 0.0:
+            numpad_anim_progress = 0.0
+
+    numpad_eased = ease_in_out_cubic(numpad_anim_progress)
+    numpad_anim_x = -400 + 400 * numpad_eased
+
+    # Draw items
+    for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
+        img = item_surfaces[idx]
+        iw, ih = img.get_size()
+        sf = min(BOX_SIZE / iw, BOX_SIZE / ih)
+        img_s = pygame.transform.smoothscale(img, (int(iw * sf), int(ih * sf)))
+        b_r = img_s.get_rect(center=(sprite_rect.centerx + x_off, sprite_rect.centery + y_off))
+        screen.blit(img_s, b_r)
+        draw_stock_counts(screen, sprite_rect, font)
+        if DEBUG: pygame.draw.rect(screen, (255, 100, 100), b_r.inflate(0, 0), 2)
+
 
     # draw cloned items
     for cloned in cloned_items:
@@ -598,6 +630,7 @@ while running:
             spawn_timer -= 1
 
 
+
     # --------------------------------------   message --------------------------------------
     # Draw active message
     if banner_message:
@@ -651,8 +684,9 @@ while running:
             receipt_rect.center = (sprite_rect.centerx - 450, sprite_rect.centery)
             pygame.draw.rect(screen, (255, 0, 0), receipt_rect, 2)
 
+
     pygame.display.flip()
-    clock.tick(60)
+
 
 pygame.quit()
 sys.exit()
