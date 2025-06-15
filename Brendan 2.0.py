@@ -212,7 +212,7 @@ def draw_stock_counts(screen, sprite_rect, font):
 
 
 def payment_success():
-    global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message, receipt_visible, last_purchased_item, purchase_time
+    global banner_message, cloned_items, selected_item, valid_order, message_timer, card_message, receipt_visible, last_purchased_item, purchase_time, receipt_paid, receipt_change, cardReader_visible, cash_machine_visible
     banner_message = "Payment complete"
     receipt_visible = True
     if selected_item is not None:
@@ -234,6 +234,9 @@ def payment_success():
 
     message_timer = MESSAGE_DURATION
     card_message = "..."
+
+    cardReader_visible = False
+    cash_machine_visible = False
 
 while running:
     dt = clock.tick(60)
