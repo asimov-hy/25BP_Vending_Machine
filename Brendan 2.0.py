@@ -199,6 +199,8 @@ receipt_dismissing = False
 receipt_pending = False
 pending_receipt_data = None
 pending_payment_type = None
+change_due = 0
+
 
 
 # ---------------------------- Game Loop ----------------------------
@@ -231,7 +233,7 @@ def payment_success(payment):
     global card_message, receipt_visible, last_purchased_item, purchase_time
     global receipt_paid, receipt_change, cardReader_visible, cash_machine_visible
     global receipt_dismissing, receipt_pending, receipt_payment, inserted_money
-    global receipt_anim_progress, receipt_visible, pending_payment_type
+    global receipt_anim_progress, receipt_visible, pending_payment_type, change_due, return_change
 
     # If a receipt is still visible or animating, dismiss it first
     if receipt_visible or receipt_anim_progress > 0:
@@ -247,12 +249,17 @@ def payment_success(payment):
         receipt_change = 0
     elif payment == "cash":
         receipt_payment = payment_money
-        receipt_paid = payment_money + inserted_money
-        receipt_change = inserted_money
+        receipt_paid = inserted_money
+        receipt_change = inserted_money - payment_money
+        change_due = receipt_change
+        inserted_money = 0
+        return_change = True
+
+
     else:   # error payment or fraud
-        receipt_payment = 0
-        receipt_paid = 0
-        receipt_change = 0
+            receipt_payment = 0
+            receipt_paid = 0
+            receipt_change = 0
 
 
     banner_message = "Payment complete"
@@ -712,7 +719,6 @@ while running:
     # draw receipt
     if receipt_anim_progress > 0:
 
-
         receipt_rect = pygame.Rect(0, 0, receipt_width, receipt_height)
         receipt_rect.center = (sprite_rect.centerx - 450, receipt_anim_y)
 
@@ -750,13 +756,13 @@ while running:
 
     # change logic
     if return_change:
-        if inserted_money == 0:
+        if change_due == 0:
             return_change = False
         elif spawn_timer <= 0:
             denominations = [10000, 5000, 1000, 500, 100]
             for i, value in enumerate(denominations):
-                if inserted_money >= value:
-                    inserted_money -= value
+                if change_due  >= value:
+                    change_due  -= value
                     spawn_timer = SPAWN_DURATION
 
                     # Calculate position for cash clone spawn near cash dispenser
