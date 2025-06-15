@@ -5,8 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cb358536-c5c9-45ed-aeb7-c46fec427bff" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Brendan 1.1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Brendan 1.0.py" beforeDir="false" afterPath="$PROJECT_DIR$/Brendan 1.0.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,6 +37,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Python.Brendan 1.0.executor": "Run",
+    "Python.Brendan 1.1.executor": "Run",
     "Python.Brendan 2.0.executor": "Run",
     "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
