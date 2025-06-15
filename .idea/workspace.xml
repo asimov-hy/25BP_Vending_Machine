@@ -5,9 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cb358536-c5c9-45ed-aeb7-c46fec427bff" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Brendan 1.0.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/25BP_Vending_Machine.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/25BP_Vending_Machine.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Brendan 2.0.py" beforeDir="false" afterPath="$PROJECT_DIR$/Brendan 2.0.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/picture/cash/numpad.png" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,17 +36,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.Brendan 2.0.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/minch/Programming/ERICA/25BP_Vending_Machine&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.Brendan 1.0.executor": "Run",
+    "Python.Brendan 2.0.executor": "Run",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/minch/Programming/ERICA/25BP_Vending_Machine",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\minch\Programming\ERICA\25BP_Vending_Machine" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\minch\programming\ERICA\25_basic_programming\25BP_Vending_Machine" />
       <recent name="C:\Users\minch\programming\ERICA\25_basic_programming\25BP_Vending_Machine\picture" />
@@ -83,7 +88,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-f78a9d071105-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.26574.90" />
+        <option value="bundled-python-sdk-babbdf50b680-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.15989.155" />
       </set>
     </attachedChunks>
   </component>
