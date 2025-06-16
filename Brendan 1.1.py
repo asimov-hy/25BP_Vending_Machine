@@ -49,6 +49,7 @@ receipt_pending = False
 pending_receipt_data = None
 pending_payment_type = None
 change_due = 0
+return_bills = False
 
 cloned_items = []
 spawn_timer = 0
@@ -186,6 +187,7 @@ for path in stock_address:
     img = pygame.image.load(path).convert_alpha()
     item_surfaces.append(img)
 
+
 # ---------------------------- Animation Variables ----------------------------
 numpad_anim_progress = 0.0
 NUMPAD_ANIM_DURATION = 1000
@@ -272,6 +274,8 @@ def payment_success(payment):
         receipt_visible = False
 
     if selected_item is not None:
+        item_dispensed_sound = pygame.mixer.Sound('sound/item_dispensed.wav')
+        item_dispensed_sound.play()
         stock_data[selected_item]["stock"] -= 1
         dispenser_x = sprite_rect.centerx + ui_buttons["dispenser"][0][0]
         dispenser_y = sprite_rect.centery + ui_buttons["dispenser"][0][1]
@@ -283,6 +287,7 @@ def payment_success(payment):
             "index": selected_item,
             "pos": (rand_x, rand_y)
         })
+
     last_purchased_item = selected_item
     purchase_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     selected_item = None
@@ -371,6 +376,8 @@ while running:
                     valid_order = 0  # Reset until confirmed by numpad
                     banner_message = f"{idx + 1}: {stock_data[idx]['name']} - ${stock_data[idx]['price']}"
                     message_timer = MESSAGE_DURATION
+                    button_press_sound = pygame.mixer.Sound('sound/button_press.wav')
+                    button_press_sound.play()
 
                     debug_message = f"Item Selected: {stock_data[idx]['name']}"
 
@@ -386,6 +393,8 @@ while running:
                 base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
                 base_y = sprite_rect.centery + NUMPAD_OFFSET[1] + GRID_OFFSET[1]
 
+
+
                 for i, label in enumerate(numpad_buttons):
                     r = i // 3
                     c = i % 3
@@ -395,10 +404,13 @@ while running:
                         GRID_BUTTON_WIDTH, GRID_BUTTON_HEIGHT
                     )
                     if btn_rect.collidepoint(mouse_x, mouse_y):
+                        # Play numpad button sound
+                        numpad_button_sound = pygame.mixer.Sound('sound/numpad_button.wav')
+                        numpad_button_sound.play()
                         # If Clear button ("C") is pressed, reset order input and state
                         if label == "C":
                             order_number = ""
-                            banner_message = ""
+                            # banner_message = ""
                             message_timer = 0
                             valid_order = 0
 
@@ -414,9 +426,20 @@ while running:
                                 # Convert order_number to index
                                 order_idx = int(order_number) - 1
 
-                                # Trigger exception manually if index is invalid or out of stock
+                                # Trigger exception manually if index is invalid or out of stock - return change
                                 if not (0 <= order_idx < len(stock_data)) or stock_data[order_idx]['stock'] <= 0:
-                                    raise ValueError
+
+                                    banner_message = "No stock"
+                                    message_timer = MESSAGE_DURATION
+                                    valid_order = 0
+                                    if card_inserted:
+                                        card_inserted = False
+                                        cardReader_visible = False
+                                    if inserted_money > 0:
+                                        inserted_money = 0
+                                        return_change = True
+                                        return_bills = True
+
 
                                 # Check if payment is sufficient (card or cash)
                                 if card_inserted or inserted_money >= stock_data[order_idx]['price']:
@@ -434,17 +457,10 @@ while running:
 
                                 # Not enough money
                                 else:
-                                    banner_message = "Not enough money"
+                                    banner_message = "Not enough money."
                                     message_timer = MESSAGE_DURATION
-                                    valid_order = 0
-                                    if card_inserted:
-                                        card_inserted = False
-                                        cardReader_visible = False
-                                    if inserted_money > 0:
-                                        inserted_money = 0
-                                        return_change = True
-                                        banner_message = "Returning change..."
-                                        message_timer = MESSAGE_DURATION
+
+
 
                             # If order_number is not a valid integer or invalid index/out of stock
                             except ValueError:
@@ -494,6 +510,8 @@ while running:
                     banner_message = "Card inserted"
                     message_timer = MESSAGE_DURATION
                     card_message = f"Okay"
+                    card_beep_sound = pygame.mixer.Sound('sound/card_beep.wav')
+                    card_beep_sound.play()
 
             # ---------------- Cash Machine Handling ----------------
             if cash_machine_visible:
@@ -507,11 +525,11 @@ while running:
 
                 if cash_machine_visible and cash_machine_rect.collidepoint(mouse_x, mouse_y):
                     if inserted_money > 0 and not return_change:
-                        change_due = inserted_money
                         inserted_money = 0
-                        return_change = True
-                        banner_message = "Returning change..."
+                        banner_message = "Returning money..."
                         message_timer = MESSAGE_DURATION
+                        bill_insert_sound = pygame.mixer.Sound('sound/bill_insert.wav')
+                        bill_insert_sound.play()
 
                 for idx, (x_off, y_off) in enumerate(cash_offsets):
                     if idx > 2:
@@ -528,6 +546,8 @@ while running:
                     if cash_rect.collidepoint(mouse_x, mouse_y):
                         cash_filename = cash_images[idx].split('/')[-1]
                         debug_message = f"Pressed cash: {cash_filename}"
+                        bill_insert_sound = pygame.mixer.Sound('sound/bill_insert.wav')
+                        bill_insert_sound.play()
 
                         # Determine inserted value based on index
                         if idx == 0:
@@ -543,9 +563,13 @@ while running:
             # -------------------- Cloned Item Handling --------------------
             # if clone item is clicked it is destroyed
             for idx, cloned in enumerate(cloned_items):
+
                 img_rect = pygame.Rect(0, 0, BOX_SIZE, BOX_SIZE)
                 img_rect.center = cloned["pos"]
                 if img_rect.collidepoint(mouse_x, mouse_y) and "anim" not in cloned:
+                    # Play pickup sound effect when cloned item is clicked
+                    pickup_sound = pygame.mixer.Sound('sound/pickup.wav')
+                    pickup_sound.play()
                     debug_message = f"Cloned Item {idx} clicked"
                     cloned["anim"] = {
                         "vy": -8,  # initial upward velocity
@@ -585,11 +609,17 @@ while running:
                     payment_success("card")
                     receipt_choice_visible = False
                     banner_message = ""
+                    numpad_button_sound = pygame.mixer.Sound('sound/numpad_button.wav')
+                    numpad_button_sound.play()
+                    receipt_sound = pygame.mixer.Sound("sound/printing_receipt.wav")
+                    receipt_sound.play()
                 elif receipt_no_rect.collidepoint(mouse_x, mouse_y):
                     receipt_choice_visible = False
                     payment_success("card")
                     receipt_visible = False
                     banner_message = ""
+                    numpad_button_sound = pygame.mixer.Sound('sound/numpad_button.wav')
+                    numpad_button_sound.play()
 
             # destroy receipt if clicked
             if receipt_visible:
@@ -902,21 +932,47 @@ while running:
         if change_due == 0:
             return_change = False
         elif spawn_timer <= 0:
-            denominations = [500, 100]
-            for i, value in enumerate(denominations):
-                if change_due  >= value:
-                    change_due  -= value
-                    spawn_timer = SPAWN_DURATION
 
-                    # Calculate position for cash clone spawn near cash dispenser
-                    x_variation = random.randint(-50, 50)
-                    y_variation = random.randint(-50, 50)
-                    clone_pos = (
-                        sprite_rect.centerx + ui_buttons["cash"][0][0] + x_variation,
-                        sprite_rect.centery + ui_buttons["cash"][0][1] + y_variation
-                    )
-                    cloned_items.append({"type": "cash", "index": i, "pos": clone_pos})
-                    break
+            if return_bills:
+                denominations = [10000, 5000, 1000]
+                for i, value in enumerate(denominations):
+                    if change_due >= value:
+                        change_due -= value
+                        spawn_timer = SPAWN_DURATION
+
+                        # Calculate position for cash clone spawn near cash dispenser
+                        x_variation = random.randint(-50, 50)
+                        y_variation = random.randint(-50, 50)
+                        clone_pos = (
+                            sprite_rect.centerx + ui_buttons["cash"][0][0] + x_variation,
+                            sprite_rect.centery + ui_buttons["cash"][0][1] + y_variation
+                        )
+                        cloned_items.append({"type": "cash", "index": i, "pos": clone_pos})
+                        # Play coin sound effect
+                        coin_sound = pygame.mixer.Sound("sound/change.wav")
+                        coin_sound.play()
+                        break
+                return_bills = False
+
+            else:
+                denominations = [500, 100]
+                for i, value in enumerate(denominations):
+                    if change_due  >= value:
+                        change_due  -= value
+                        spawn_timer = SPAWN_DURATION
+
+                        # Calculate position for cash clone spawn near cash dispenser
+                        x_variation = random.randint(-50, 50)
+                        y_variation = random.randint(-50, 50)
+                        clone_pos = (
+                            sprite_rect.centerx + ui_buttons["cash"][0][0] + x_variation,
+                            sprite_rect.centery + ui_buttons["cash"][0][1] + y_variation
+                        )
+                        cloned_items.append({"type": "cash", "index": i, "pos": clone_pos})
+                        # Play coin sound effect
+                        coin_sound = pygame.mixer.Sound("sound/change.wav")
+                        coin_sound.play()
+                        break
         else:
             spawn_timer -= 1
 
@@ -925,6 +981,7 @@ while running:
     # --------------------------------------   message --------------------------------------
     # Draw active message
     if banner_message:
+
         msg_surf = font.render(banner_message, True, (255, 255, 255))
         msg_pos = (sprite_rect.centerx - 80, sprite_rect.centery - 303)
         screen.blit(msg_surf, msg_pos)
@@ -937,6 +994,16 @@ while running:
                 receipt_visible = False
 
             banner_message = ""
+    else:
+        # if there is no current banner message show current input money
+
+        # card inserted shows card inserted
+        banner_message = f"Inserted: ${inserted_money}"
+        if card_inserted:
+            banner_message = f"Card inserted"
+
+        message_timer = MESSAGE_DURATION
+
 
     if card_message and cardreader_anim_progress == 1.0:
         msg_surf = input_font.render(card_message, True, (255, 255, 255))
