@@ -260,6 +260,12 @@ def payment_success(payment):
         change_due = receipt_change
         inserted_money = 0
         return_change = True
+        # debug message shows receipt payment, paid, and change
+        debug_message = "Receipt Payment: {}, Paid: {}, Change Due: {}".format(
+            receipt_payment,
+            receipt_paid,
+            receipt_change
+        )
 
     else:   # error payment or fraud
             receipt_payment = 0
@@ -422,62 +428,47 @@ while running:
 
                         # If Enter button ("E") is pressed, process order
                         elif label == "E":
-                            try:
-                                # Convert order_number to index
-                                order_idx = int(order_number) - 1
+                            order_idx = int(order_number) - 1
 
-                                # Trigger exception manually if index is invalid or out of stock - return change
-                                if not (0 <= order_idx < len(stock_data)) or stock_data[order_idx]['stock'] <= 0:
+                            # Case 1: invalid input
+                            if not (0 <= order_idx < len(stock_data)):
+                                banner_message = "Invalid order"
 
-                                    banner_message = "No stock"
-                                    message_timer = MESSAGE_DURATION
-                                    valid_order = 0
-                                    if card_inserted:
-                                        card_inserted = False
-                                        cardReader_visible = False
-                                    if inserted_money > 0:
-                                        inserted_money = 0
-                                        return_change = True
-                                        return_bills = True
+                            else:
+                                # case 2: enough stock
+                                if stock_data[order_idx]["stock"] > 0:
 
-
-                                # Check if payment is sufficient (card or cash)
-                                if card_inserted or inserted_money >= stock_data[order_idx]['price']:
-                                    payment_money = stock_data[order_idx]['price']
-
-                                    # If card was inserted, show receipt choice
+                                    # case 3: paid with card
                                     if card_inserted:
                                         receipt_choice_visible = True
                                         selected_item = order_idx
                                         card_inserted = False
-
-                                    # If using cash, proceed with payment
-                                    else:
+                                        payment_success("card")
+                                    # case 4: paid with cas
+                                    elif inserted_money >= stock_data[order_idx]['price']:
+                                        selected_item = order_idx
+                                        payment_money = stock_data[order_idx]['price']
+                                        return_bills = True
                                         payment_success("cash")
-
-                                # Not enough money
-                                else:
-                                    banner_message = "Not enough money."
+                                    # case 4: not enough money
+                                    else:
+                                        # Not enough money
+                                        banner_message = "Not enough money."
+                                        message_timer = MESSAGE_DURATION
+                                # case 5: not enough stock
+                                elif stock_data[order_idx]["stock"] <= 0:
+                                    # Not enough stock
+                                    change_due = inserted_money
+                                    banner_message = "Not enough stock."
                                     message_timer = MESSAGE_DURATION
-
-
-
-                            # If order_number is not a valid integer or invalid index/out of stock
-                            except ValueError:
-                                banner_message = "Invalid order"
-                                message_timer = MESSAGE_DURATION
-                                valid_order = 0
-                                if card_inserted:
-                                    card_inserted = False
-                                    cardReader_visible = False
-                                if inserted_money > 0:
                                     inserted_money = 0
                                     return_change = True
-                                    banner_message = "Returning change..."
-                                    message_timer = MESSAGE_DURATION
+                                    return_bills = True
 
                             # Always reset order_number after Enter
                             order_number = ""
+
+
 
                         # If number button is pressed, append to order_number
                         else:
@@ -877,6 +868,16 @@ while running:
             if DEBUG:
                 pygame.draw.rect(screen, (200, 0, 200), b_r.inflate(0, 0), 2)
 
+        elif cloned["type"] == "bills":
+            img = pygame.image.load(cash_images[cloned["index"]]).convert_alpha()
+            cw = int(img.get_width() * CLONECASH_SCALE)
+            ch = int(img.get_height() * CLONECASH_SCALE)
+            img = pygame.transform.smoothscale(img, (cw, ch))
+            img_rect = img.get_rect(center=cloned["pos"])
+            screen.blit(img, img_rect)
+            if DEBUG:
+                pygame.draw.rect(screen, (0, 200, 200), img_rect, 2)
+
     for cloned in cloned_items[:]:  # loop over a copy to allow safe removal
         if "anim" in cloned:
             cloned["anim"]["vy"] += cloned["anim"]["gravity"]
@@ -929,6 +930,8 @@ while running:
 
     # change logic
     if return_change:
+        # debug message shows change due
+        # debug_message = f"Change Due: ${change_due}"
         if change_due == 0:
             return_change = False
         elif spawn_timer <= 0:
@@ -947,12 +950,13 @@ while running:
                             sprite_rect.centerx + ui_buttons["cash"][0][0] + x_variation,
                             sprite_rect.centery + ui_buttons["cash"][0][1] + y_variation
                         )
-                        cloned_items.append({"type": "cash", "index": i, "pos": clone_pos})
+                        cloned_items.append({"type": "bills", "index": i, "pos": clone_pos})
                         # Play coin sound effect
                         coin_sound = pygame.mixer.Sound("sound/change.wav")
                         coin_sound.play()
                         break
-                return_bills = False
+                if change_due < 1000:
+                    return_bills = False
 
             else:
                 denominations = [500, 100]
