@@ -374,6 +374,13 @@ while running:
 
                     debug_message = f"Item Selected: {stock_data[idx]['name']}"
 
+                    # if in debug mode, add +1 to stock
+                    if DEBUG:
+                        stock_data[idx]['stock'] += 1
+                        debug_message = f"Added 1 {stock_data[idx]['name']} to stock"
+                        message_timer = MESSAGE_DURATION
+
+
             # ---------------- Numpad Input Handling ----------------
             if numpad_visible:
                 base_x = sprite_rect.centerx + NUMPAD_OFFSET[0] + GRID_OFFSET[0]
@@ -394,6 +401,12 @@ while running:
                             banner_message = ""
                             message_timer = 0
                             valid_order = 0
+
+                            # if debug mode: clear all cloned items
+                            if DEBUG:
+                                cloned_items.clear()
+                                debug_message = "Cleared all cloned items"
+                                message_timer = MESSAGE_DURATION
 
                         # If Enter button ("E") is pressed, process order
                         elif label == "E":
@@ -545,10 +558,6 @@ while running:
             if receipt_choice_visible:
                 if receipt_visible or receipt_anim_progress > 0:
                     receipt_dismissing = True
-
-
-
-
 
                 banner_message = "Print receipt?"
                 message_timer = MESSAGE_DURATION * 2
