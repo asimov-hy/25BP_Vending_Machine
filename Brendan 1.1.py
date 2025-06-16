@@ -203,6 +203,8 @@ CASHIMAGES_ANIM_DURATION = 1000
 receipt_anim_progress = 0.0
 RECEIPT_ANIM_DURATION = 1000
 
+receipt_choice_anim_progress = 0.0
+RECEIPT_CHOICE_ANIM_DURATION = 600  # ms
 
 
 # ---------------------------- Game Loop ----------------------------
@@ -296,7 +298,7 @@ while running:
     dt = clock.tick(60)
     # create vending machine sprite rect
     window_width, window_height = screen.get_size()
-    sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2))
+    sprite_rect = sprite.get_rect(center=(window_width // 2, window_height // 2+20))
 
     # Handle events
     for event in pygame.event.get():
@@ -386,45 +388,72 @@ while running:
                         GRID_BUTTON_WIDTH, GRID_BUTTON_HEIGHT
                     )
                     if btn_rect.collidepoint(mouse_x, mouse_y):
+                        # If Clear button ("C") is pressed, reset order input and state
                         if label == "C":
                             order_number = ""
                             banner_message = ""
                             message_timer = 0
                             valid_order = 0
-                        elif label == "E":
-                            if order_number.isdigit() and 1 <= int(order_number) <= 12 and stock_data[int(order_number) - 1]['stock'] > 0:
 
-                                if card_inserted or inserted_money >= stock_data[int(order_number) - 1]['price']:
-                                    payment_money = stock_data[int(order_number) - 1]['price']
+                        # If Enter button ("E") is pressed, process order
+                        elif label == "E":
+                            try:
+                                # Convert order_number to index
+                                order_idx = int(order_number) - 1
+
+                                # Trigger exception manually if index is invalid or out of stock
+                                if not (0 <= order_idx < len(stock_data)) or stock_data[order_idx]['stock'] <= 0:
+                                    raise ValueError
+
+                                # Check if payment is sufficient (card or cash)
+                                if card_inserted or inserted_money >= stock_data[order_idx]['price']:
+                                    payment_money = stock_data[order_idx]['price']
+
+                                    # If card was inserted, show receipt choice
                                     if card_inserted:
                                         receipt_choice_visible = True
-                                        selected_item = int(order_number) - 1
-                                        # payment_success("card")
+                                        selected_item = order_idx
                                         card_inserted = False
+
+                                    # If using cash, proceed with payment
                                     else:
                                         payment_success("cash")
 
-                            elif stock_data[int(order_number) - 1]['stock'] > 0:
-                                banner_message = "No item stocked"
+                                # Not enough money
+                                else:
+                                    banner_message = "Not enough money"
+                                    message_timer = MESSAGE_DURATION
+                                    valid_order = 0
+                                    if card_inserted:
+                                        card_inserted = False
+                                        cardReader_visible = False
+                                    if inserted_money > 0:
+                                        inserted_money = 0
+                                        return_change = True
+                                        banner_message = "Returning change..."
+                                        message_timer = MESSAGE_DURATION
+
+                            # If order_number is not a valid integer or invalid index/out of stock
+                            except ValueError:
+                                banner_message = "Invalid order"
                                 message_timer = MESSAGE_DURATION
                                 valid_order = 0
                                 if card_inserted:
                                     card_inserted = False
                                     cardReader_visible = False
-
                                 if inserted_money > 0:
                                     inserted_money = 0
                                     return_change = True
                                     banner_message = "Returning change..."
                                     message_timer = MESSAGE_DURATION
 
-                            else:
-                                banner_message = "Invalid order"
-                                message_timer = MESSAGE_DURATION
-                                valid_order = 0
+                            # Always reset order_number after Enter
                             order_number = ""
+
+                        # If number button is pressed, append to order_number
                         else:
                             order_number += label
+                            # Keep only last two digits
                             if len(order_number) > 2:
                                 order_number = order_number[1:]
 
@@ -514,8 +543,15 @@ while running:
             # -------------------- receipt handling --------------------
 
             if receipt_choice_visible:
+                if receipt_visible or receipt_anim_progress > 0:
+                    receipt_dismissing = True
+
+
+
+
+
                 banner_message = "Print receipt?"
-                message_timer = MESSAGE_DURATION
+                message_timer = MESSAGE_DURATION * 2
 
                 # Define rect for drawing and click handling
                 receipt_choice_rect = receipt_choice_img.get_rect(
@@ -715,7 +751,14 @@ while running:
     cashmachine_anim_x = -400 + 400 * cashmachine_eased  # from left
     cashimages_anim_x = window_width + 200 - (window_width + 200 - 0) * cashimages_eased  # from right
 
-    if receipt_choice_visible:
+    if receipt_choice_anim_progress > 0:
+        eased = ease_in_out_cubic(receipt_choice_anim_progress)
+
+        receipt_choice_rect = receipt_choice_img.get_rect(
+            center=(sprite_rect.centerx,
+                    -200 + (sprite_rect.centery - 400 + 200) * eased)
+        )
+
         screen.blit(receipt_choice_img, receipt_choice_rect)
 
         if DEBUG:
@@ -748,6 +791,18 @@ while running:
 
     # From above window (-receipt_height) to center (normal position), then slide down if dismissed
     receipt_anim_y = -receipt_height + (sprite_rect.centery - (-receipt_height)) * receipt_eased
+
+    # Easing animation for receipt choice
+    if receipt_choice_visible and receipt_choice_anim_progress < 1.0:
+        receipt_choice_anim_progress += dt / RECEIPT_CHOICE_ANIM_DURATION
+        if receipt_choice_anim_progress > 1.0:
+            receipt_choice_anim_progress = 1.0
+    elif not receipt_choice_visible and receipt_choice_anim_progress > 0.0:
+        receipt_choice_anim_progress -= dt / RECEIPT_CHOICE_ANIM_DURATION
+        if receipt_choice_anim_progress < 0.0:
+            receipt_choice_anim_progress = 0.0
+
+    receipt_choice_eased = ease_in_out_cubic(receipt_choice_anim_progress)
 
     # Draw items
     for idx, (x_off, y_off) in enumerate(item_offsets[:12]):
