@@ -387,11 +387,15 @@ while running:
 
                     debug_message = f"Item Selected: {stock_data[idx]['name']}"
 
-                    # if in debug mode, add +1 to stock
+                    # if in debug mode, add +1 to stock. max 20
                     if DEBUG:
-                        stock_data[idx]['stock'] += 1
-                        debug_message = f"Added 1 {stock_data[idx]['name']} to stock"
-                        message_timer = MESSAGE_DURATION
+                        if stock_data[idx]['stock'] < 20:
+                            stock_data[idx]['stock'] += 1
+                            debug_message = f"Added 1 {stock_data[idx]['name']} to stock"
+                            message_timer = MESSAGE_DURATION
+                        else:
+                            debug_message = f"Max stock reached for {stock_data[idx]['name']}"
+                            message_timer = MESSAGE_DURATION
 
 
             # ---------------- Numpad Input Handling ----------------
