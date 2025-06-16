@@ -448,7 +448,7 @@ while running:
                                     elif inserted_money >= stock_data[order_idx]['price']:
                                         selected_item = order_idx
                                         payment_money = stock_data[order_idx]['price']
-                                        
+
                                         payment_success("cash")
                                     # case 4: not enough money
                                     else:
