@@ -250,8 +250,8 @@ def payment_success(payment):
     # else, continue with new receipt logic
 
     if payment == "card":
-        receipt_payment = payment_money
-        receipt_paid = payment_money
+        receipt_payment = stock_data[selected_item]["price"]
+        receipt_paid = stock_data[selected_item]["price"]
         receipt_change = 0
     elif payment == "cash":
         receipt_payment = payment_money
@@ -443,12 +443,12 @@ while running:
                                         receipt_choice_visible = True
                                         selected_item = order_idx
                                         card_inserted = False
-                                        payment_success("card")
+                                        # payment_success("card")
                                     # case 4: paid with cas
                                     elif inserted_money >= stock_data[order_idx]['price']:
                                         selected_item = order_idx
                                         payment_money = stock_data[order_idx]['price']
-                                        return_bills = True
+                                        
                                         payment_success("cash")
                                     # case 4: not enough money
                                     else:
@@ -516,7 +516,10 @@ while running:
 
                 if cash_machine_visible and cash_machine_rect.collidepoint(mouse_x, mouse_y):
                     if inserted_money > 0 and not return_change:
+                        change_due = inserted_money
                         inserted_money = 0
+                        return_change = True
+                        return_bills = True
                         banner_message = "Returning money..."
                         message_timer = MESSAGE_DURATION
                         bill_insert_sound = pygame.mixer.Sound('sound/bill_insert.wav')
